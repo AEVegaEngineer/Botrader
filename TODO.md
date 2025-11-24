@@ -3,6 +3,14 @@
 This document outlines the strategic plan to evolve Botrader into a state-of-the-art algorithmic trading system.
 **Constraint:** All components must be fully **Dockerized** and run **locally** (no cloud services).
 
+## Immediate Priorities 🚨
+- [ ] **Frontend Modularization**: Refactor the single `page.tsx` into a proper Next.js project structure with reusable components.
+- [ ] **Mantine UI**: Apply [Mantine](https://mantine.dev/) styles and theming for a professional look.
+- [ ] **Performance Dashboard**: (#1 Priority) Create a dedicated dashboard page displaying:
+    - Wins / Losses
+    - Trading Performance Metrics
+    - Profit Graph (Cumulative PnL)
+
 ## Phase 1: Data Engineering & Infrastructure 🏗️
 *Goal: Build a robust, containerized data foundation.*
 
