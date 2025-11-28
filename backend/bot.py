@@ -112,3 +112,55 @@ class TradingBot:
         self.trades.append(trade)
         logger.info(f"Trade executed: {trade}")
         return trade
+
+    def get_performance(self):
+        initial_capital = 10000.0
+        current_capital = initial_capital
+        wins = 0
+        losses = 0
+        total_pnl = 0.0
+        equity_curve = [{"time": datetime.now().isoformat(), "equity": initial_capital}]
+        
+        # Simple FIFO PnL calculation
+        inventory = []
+        
+        for trade in self.trades:
+            if trade['side'] == 'BUY':
+                inventory.append(trade)
+                current_capital -= trade['price'] * trade['quantity']
+            elif trade['side'] == 'SELL' and inventory:
+                buy_trade = inventory.pop(0)
+                buy_price = buy_trade['price']
+                sell_price = trade['price']
+                quantity = trade['quantity']
+                
+                pnl = (sell_price - buy_price) * quantity
+                total_pnl += pnl
+                current_capital += sell_price * quantity
+                
+                if pnl > 0:
+                    wins += 1
+                else:
+                    losses += 1
+                
+                equity_curve.append({
+                    "time": trade['time'],
+                    "equity": current_capital + (len(inventory) * trade['price'] * quantity) # Mark to market
+                })
+        
+        # Mark to market for remaining inventory
+        current_price = self.get_current_price()
+        unrealized_pnl = 0
+        if current_price > 0:
+            for item in inventory:
+                unrealized_pnl += (current_price - item['price']) * item['quantity']
+        
+        total_equity = current_capital + (len(inventory) * current_price * 0.001) # Approx
+
+        return {
+            "wins": wins,
+            "losses": losses,
+            "total_pnl": total_pnl + unrealized_pnl,
+            "equity_curve": equity_curve,
+            "win_rate": (wins / (wins + losses)) * 100 if (wins + losses) > 0 else 0
+        }

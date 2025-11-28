@@ -41,3 +41,7 @@ def get_history():
 @app.get("/price")
 def get_price():
     return {"price": bot.get_current_price()}
+
+@app.get("/performance")
+def get_performance():
+    return bot.get_performance()

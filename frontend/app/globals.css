@@ -1,3 +1,5 @@
+@import '@mantine/core/styles.css';
+
 :root {
   --background: #0f172a;
   --foreground: #f8fafc;
@@ -39,6 +41,7 @@ body {
   font-weight: 700;
   background: linear-gradient(to right, var(--primary), var(--accent));
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
