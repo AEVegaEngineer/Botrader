@@ -7,9 +7,11 @@ services:
       - "8001:8000"
     volumes:
       - ./backend:/app
+      - ./mlruns:/mlruns
     env_file:
       - .env
-    restart: always
+    networks:
+      - botrader-net
 
   frontend:
     build: ./frontend
@@ -19,3 +21,113 @@ services:
       - ./frontend:/app
       - /app/node_modules
     restart: always
+    networks:
+      - botrader-net
+
+  collector:
+    build: ./backend
+    command: python -m app.collector_main
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env
+    depends_on:
+      - timescaledb
+    restart: always
+    networks:
+      - botrader-net
+
+  backtest:
+    build: ./backend
+    command: python -m app.backtest_main
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env
+    depends_on:
+      - timescaledb
+    restart: "no" # Run once and exit
+    networks:
+      - botrader-net
+
+  paper-trader:
+    build: ./backend
+    command: python -u -m app.paper_main
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env
+    depends_on:
+      - timescaledb
+    restart: always
+    networks:
+      - botrader-net
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    ports:
+      - "5001:5000"
+    command: mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root /mlruns --host 0.0.0.0 --allowed-hosts "*"
+    volumes:
+      - ./mlruns:/mlruns
+      - ./mlflow.db:/mlflow.db
+    env_file:
+      - .env
+    depends_on:
+      - timescaledb
+    restart: always
+    networks:
+      - botrader-net
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg14
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=botrader
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+    restart: always
+    networks:
+      - botrader-net
+
+  inference:
+    build: ./backend
+    command: python -m app.inference_main
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./backend:/app
+      - ./mlruns:/mlruns
+    env_file:
+      - .env
+    depends_on:
+      - mlflow
+    restart: always
+    networks:
+      - botrader-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - botrader-net
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3002:3000"
+    networks:
+      - botrader-net
+
+volumes:
+  timescaledb_data:
+
+networks:
+  botrader-net:
+    driver: bridge

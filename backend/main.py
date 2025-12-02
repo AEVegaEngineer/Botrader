@@ -1,47 +1,28 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from bot import TradingBot
 import asyncio
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from app.core.database import engine, Base
+from app.services.collector import BinanceCollector
 
-app = FastAPI()
+collector = BinanceCollector()
 
-# CORS configuration
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # In production, specify the frontend URL
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    print("Starting up...")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    
+    asyncio.create_task(collector.start())
+    
+    yield
+    
+    # Shutdown
+    print("Shutting down...")
+    collector.stop()
 
-bot = TradingBot()
+app = FastAPI(lifespan=lifespan)
 
 @app.get("/")
-def read_root():
-    return {"message": "Bitcoin Trading Bot API"}
-
-@app.post("/start")
-async def start_bot():
-    await bot.start()
-    return {"status": "Bot started"}
-
-@app.post("/stop")
-def stop_bot():
-    bot.stop()
-    return {"status": "Bot stopped"}
-
-@app.get("/status")
-def get_status():
-    return bot.get_status()
-
-@app.get("/history")
-def get_history():
-    return bot.get_history()
-
-@app.get("/price")
-def get_price():
-    return {"price": bot.get_current_price()}
-
-@app.get("/performance")
-def get_performance():
-    return bot.get_performance()
+async def root():
+    return {"message": "Botrader Backend Running"}
