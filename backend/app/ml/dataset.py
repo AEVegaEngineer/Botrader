@@ -27,13 +27,21 @@ class SequenceDataset(Dataset):
             self.targets = df[target_col].values.astype(np.float32)
         
     def __len__(self):
-        return len(self.features) - self.seq_len
+        # We need a sequence of length seq_len.
+        # If N=100, seq_len=10.
+        # Last index is 99.
+        # We need window ending at 99: [90, ..., 99].
+        # Start index is 90.
+        # So idx goes from 0 to 90.
+        # Count is 91.
+        # N - seq_len + 1.
+        return len(self.features) - self.seq_len + 1
 
     def __getitem__(self, idx):
-        # Sequence: [idx, idx + seq_len]
-        # Target: [idx + seq_len] (predict target at the end of sequence)
+        # Sequence: [idx, idx + seq_len] (exclusive end) -> indices [idx, ..., idx + seq_len - 1]
+        # Target: [idx + seq_len - 1] (the label corresponding to the last step of the sequence)
         
         x = self.features[idx : idx + self.seq_len]
-        y = self.targets[idx + self.seq_len]
+        y = self.targets[idx + self.seq_len - 1]
         
         return torch.tensor(x), torch.tensor(y)

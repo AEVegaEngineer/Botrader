@@ -1,12 +1,14 @@
 import { Table, Paper, Text, Badge } from '@mantine/core';
 
 interface Trade {
-  id: number;
   time: string;
+  symbol: string;
   side: string;
   price: number;
   quantity: number;
-  status: string;
+  pnl?: number;
+  capital_after?: number;
+  strategy?: string;
 }
 
 interface TradeTableProps {
@@ -14,21 +16,31 @@ interface TradeTableProps {
 }
 
 export function TradeTable({ trades }: TradeTableProps) {
-  const rows = trades.map((trade) => (
-    <Table.Tr key={trade.id}>
-      <Table.Td>#{trade.id}</Table.Td>
-      <Table.Td>{new Date(trade.time).toLocaleTimeString()}</Table.Td>
+  const rows = trades.map((trade, index) => (
+    <Table.Tr key={`${trade.time}-${trade.symbol}-${index}`}>
+      <Table.Td>{new Date(trade.time).toLocaleString()}</Table.Td>
       <Table.Td>
         <Text c={trade.side === 'BUY' ? 'green' : 'red'} fw={500}>
           {trade.side}
         </Text>
       </Table.Td>
-      <Table.Td>${trade.price}</Table.Td>
-      <Table.Td>{trade.quantity}</Table.Td>
+      <Table.Td>${trade.price.toFixed(2)}</Table.Td>
+      <Table.Td>{trade.quantity.toFixed(6)}</Table.Td>
       <Table.Td>
-        <Badge size="sm" variant="light" color="gray">
-          {trade.status}
-        </Badge>
+        {trade.pnl !== null && trade.pnl !== undefined ? (
+          <Text c={trade.pnl >= 0 ? 'green' : 'red'} fw={500}>
+            ${trade.pnl.toFixed(2)}
+          </Text>
+        ) : (
+          <Text c="dimmed">-</Text>
+        )}
+      </Table.Td>
+      <Table.Td>
+        {trade.strategy && (
+          <Badge size="sm" variant="light" color="blue">
+            {trade.strategy}
+          </Badge>
+        )}
       </Table.Td>
     </Table.Tr>
   ));
@@ -40,18 +52,18 @@ export function TradeTable({ trades }: TradeTableProps) {
         <Table>
           <Table.Thead>
             <Table.Tr>
-              <Table.Th>ID</Table.Th>
               <Table.Th>Time</Table.Th>
               <Table.Th>Side</Table.Th>
               <Table.Th>Price</Table.Th>
               <Table.Th>Quantity</Table.Th>
-              <Table.Th>Status</Table.Th>
+              <Table.Th>PnL</Table.Th>
+              <Table.Th>Strategy</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
             {trades.length === 0 ? (
               <Table.Tr>
-                <Table.Td colSpan={6} align="center">
+                <Table.Td colSpan={6} style={{ textAlign: 'center' }}>
                   <Text c="dimmed" py="xl">No trades executed yet</Text>
                 </Table.Td>
               </Table.Tr>

@@ -1,68 +1,88 @@
-import { Grid, Title, Text, Group, Button, TextInput, Select } from '@mantine/core';
-import { Search, Filter } from 'lucide-react';
-import { useState } from 'react';
-import { StrategyCard } from './StrategyCard';
+'use client';
 
-interface StrategyManagerProps {
-  strategies: any[];
-  onActivate: (id: string) => void;
-  onDeactivate: (id: string) => void;
+import { Grid, Title, Text, Group, Button, Card, Badge } from '@mantine/core';
+import { useState, useEffect } from 'react';
+import { api } from '@/lib/api';
+import { CheckCircle, Circle } from 'lucide-react';
+
+interface Strategy {
+  id: string;
+  name: string;
+  description: string;
 }
 
-export function StrategyManager({ strategies, onActivate, onDeactivate }: StrategyManagerProps) {
-  const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState<string | null>(null);
+export function StrategyManager() {
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
+  const [activeStrategy, setActiveStrategy] = useState<string>('');
+  const [loading, setLoading] = useState(false);
 
-  const filteredStrategies = strategies.filter(s => {
-    const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase()) || 
-                          s.description.toLowerCase().includes(search.toLowerCase());
-    const matchesType = typeFilter ? s.type === typeFilter : true;
-    return matchesSearch && matchesType;
-  });
+  useEffect(() => {
+    loadStrategies();
+  }, []);
 
-  const strategyTypes = Array.from(new Set(strategies.map(s => s.type)));
+  const loadStrategies = async () => {
+    try {
+      const data = await api.getStrategiesNew();
+      setStrategies(data.strategies || []);
+      setActiveStrategy(data.active || '');
+    } catch (error) {
+      console.error('Failed to load strategies:', error);
+    }
+  };
+
+  const handleActivate = async (id: string) => {
+    setLoading(true);
+    try {
+      await api.setStrategy(id);
+      setActiveStrategy(id);
+    } catch (error) {
+      console.error('Failed to activate strategy:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div>
       <Group justify="space-between" mb="lg">
         <div>
           <Title order={3}>Strategy Management</Title>
-          <Text c="dimmed" size="sm">Manage and deploy trading algorithms</Text>
+          <Text c="dimmed" size="sm">Select and manage trading strategies</Text>
         </div>
-        <Group>
-          <TextInput 
-            placeholder="Search strategies..." 
-            leftSection={<Search size={16} />}
-            value={search}
-            onChange={(e) => setSearch(e.currentTarget.value)}
-          />
-          <Select
-            placeholder="Filter by type"
-            data={strategyTypes}
-            value={typeFilter}
-            onChange={setTypeFilter}
-            clearable
-            leftSection={<Filter size={16} />}
-            w={150}
-          />
-        </Group>
       </Group>
 
       <Grid>
-        {filteredStrategies.map(strategy => (
-          <Grid.Col key={strategy.id} span={{ base: 12, md: 6, lg: 4 }}>
-            <StrategyCard 
-              strategy={strategy}
-              onActivate={onActivate}
-              onDeactivate={onDeactivate}
-              onViewDetails={(id) => console.log('View details', id)}
-            />
+        {strategies.map(strategy => (
+          <Grid.Col key={strategy.id} span={{ base: 12, md: 6 }}>
+            <Card shadow="sm" padding="lg" radius="md" withBorder>
+              <Group justify="space-between" mb="xs">
+                <Text fw={500}>{strategy.name}</Text>
+                {activeStrategy === strategy.id && (
+                  <Badge color="green" variant="light">Active</Badge>
+                )}
+              </Group>
+
+              <Text size="sm" c="dimmed" mb="md">
+                {strategy.description}
+              </Text>
+
+              <Button
+                fullWidth
+                variant={activeStrategy === strategy.id ? "light" : "filled"}
+                color={activeStrategy === strategy.id ? "green" : "blue"}
+                onClick={() => handleActivate(strategy.id)}
+                disabled={loading || activeStrategy === strategy.id}
+                leftSection={activeStrategy === strategy.id ? <CheckCircle size={16} /> : <Circle size={16} />}
+              >
+                {activeStrategy === strategy.id ? 'Active' : 'Activate'}
+              </Button>
+            </Card>
           </Grid.Col>
         ))}
       </Grid>
 
-      {filteredStrategies.length === 0 && (
-        <Text c="dimmed" ta="center" mt="xl">No strategies found matching your criteria.</Text>
+      {strategies.length === 0 && (
+        <Text c="dimmed" ta="center" mt="xl">No strategies available.</Text>
       )}
     </div>
   );

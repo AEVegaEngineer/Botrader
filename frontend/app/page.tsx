@@ -11,7 +11,7 @@ import { BotControls } from '../components/Dashboard/BotControls';
 import { RiskMonitor } from '../components/Dashboard/RiskMonitor';
 import { PerformanceMetricsPanel } from '../components/Dashboard/PerformanceMetricsPanel';
 import { StrategyManager } from '../components/Strategy/StrategyManager';
-import { ExplainabilityPanel } from '../components/Dashboard/ExplainabilityPanel';
+import { AIInsights } from '../components/Explainability/AIInsights';
 import { InterventionLog } from '../components/Dashboard/InterventionLog';
 import { PriceChart } from '../components/Dashboard/PriceChart';
 import { TradeTable } from '../components/Dashboard/TradeTable';
@@ -19,14 +19,12 @@ import { ThemeToggle } from '../components/ThemeToggle';
 import { StatusBadge } from '../components/Dashboard/StatusBadge';
 
 export default function Dashboard() {
-  const { status, history, price, priceData, startBot, stopBot } = useBotData();
+  const { status, history, price, priceData, startBot, stopBot, interval, setInterval } = useBotData();
   const { 
     riskStatus, 
     performanceMetrics, 
     strategies, 
-    interventions, 
-    featureImportance, 
-    predictionExplanation,
+    interventions,
     actions 
   } = useAdvancedDashboard();
 
@@ -101,7 +99,11 @@ export default function Dashboard() {
           <Grid>
             <Grid.Col span={{ base: 12, lg: 8 }}>
               <Stack gap="xl">
-                <PriceChart data={priceData} />
+                <PriceChart 
+                  data={priceData} 
+                  interval={interval} 
+                  onIntervalChange={setInterval}
+                />
                 <TradeTable trades={history} />
               </Stack>
             </Grid.Col>
@@ -123,35 +125,11 @@ export default function Dashboard() {
         </Tabs.Panel>
 
         <Tabs.Panel value="strategies" pt="xl">
-          <StrategyManager 
-            strategies={strategies}
-            onActivate={actions.activateStrategy}
-            onDeactivate={actions.deactivateStrategy}
-          />
+          <StrategyManager />
         </Tabs.Panel>
 
         <Tabs.Panel value="insights" pt="xl">
-          <Grid>
-            <Grid.Col span={{ base: 12, md: 6 }}>
-              <ExplainabilityPanel 
-                featureImportance={featureImportance}
-                predictionExplanation={predictionExplanation}
-                onRefresh={actions.refreshPrediction}
-              />
-            </Grid.Col>
-            <Grid.Col span={{ base: 12, md: 6 }}>
-              {/* Placeholder for future detailed AI analysis */}
-              <Paper withBorder p="md" radius="md" h="100%">
-                <Text size="lg" fw={600} mb="md">Model Architecture</Text>
-                <Text c="dimmed">
-                  Active Model: {strategies.find(s => s.is_active)?.name || 'None'}
-                </Text>
-                <Text c="dimmed" mt="sm">
-                  Type: {strategies.find(s => s.is_active)?.type || 'N/A'}
-                </Text>
-              </Paper>
-            </Grid.Col>
-          </Grid>
+          <AIInsights />
         </Tabs.Panel>
 
         <Tabs.Panel value="audit" pt="xl">

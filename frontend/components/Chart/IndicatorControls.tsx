@@ -1,5 +1,7 @@
-import { Paper, Text, Group, Switch, Stack, MultiSelect } from '@mantine/core';
-import { Settings } from 'lucide-react';
+'use client';
+
+import { Paper, Text, Group, Switch, Stack, Tooltip } from '@mantine/core';
+import { Settings, Info } from 'lucide-react';
 
 interface IndicatorControlsProps {
   indicators: {
@@ -18,6 +20,9 @@ export function IndicatorControls({ indicators, onToggle }: IndicatorControlsPro
       <Group gap="xs" mb="sm">
         <Settings size={16} />
         <Text size="sm" fw={600}>Chart Indicators</Text>
+        <Tooltip label="Indicators are not yet implemented for candlestick charts">
+          <Info size={14} style={{ opacity: 0.5 }} />
+        </Tooltip>
       </Group>
       
       <Stack gap="xs">
@@ -26,30 +31,35 @@ export function IndicatorControls({ indicators, onToggle }: IndicatorControlsPro
           size="xs" 
           checked={indicators.sma}
           onChange={(e) => onToggle('sma', e.currentTarget.checked)}
+          disabled
         />
         <Switch 
           label="EMA (50)" 
           size="xs" 
           checked={indicators.ema}
           onChange={(e) => onToggle('ema', e.currentTarget.checked)}
+          disabled
         />
         <Switch 
           label="Bollinger Bands" 
           size="xs" 
           checked={indicators.bollinger}
           onChange={(e) => onToggle('bollinger', e.currentTarget.checked)}
+          disabled
         />
         <Switch 
           label="RSI (14)" 
           size="xs" 
           checked={indicators.rsi}
           onChange={(e) => onToggle('rsi', e.currentTarget.checked)}
+          disabled
         />
         <Switch 
           label="MACD" 
           size="xs" 
           checked={indicators.macd}
           onChange={(e) => onToggle('macd', e.currentTarget.checked)}
+          disabled
         />
       </Stack>
     </Paper>

@@ -53,3 +53,15 @@ class CandleIndicators(Base):
     bb_middle = Column(Float)
     bb_upper = Column(Float)
     atr_14 = Column(Float)
+
+class PaperTrade(Base):
+    __tablename__ = "paper_trades"
+
+    time = Column(DateTime(timezone=True), primary_key=True)  # Must be first for TimescaleDB hypertable
+    symbol = Column(String, primary_key=True)  # Composite key with time
+    side = Column(String, nullable=False)  # 'BUY' or 'SELL'
+    quantity = Column(Float, nullable=False)
+    price = Column(Float, nullable=False)
+    pnl = Column(Float)  # Profit/Loss for closed positions
+    capital_after = Column(Float)  # Capital after trade
+    strategy = Column(String)  # Strategy that generated the trade

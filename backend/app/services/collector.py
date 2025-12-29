@@ -18,6 +18,10 @@ logger = logging.getLogger(__name__)
 class BinanceCollector:
     def __init__(self):
         self.running = False
+        self.latest_price = 0.0
+
+    def get_latest_price(self):
+        return self.latest_price
 
     async def start(self):
         self.running = True
@@ -146,6 +150,7 @@ class BinanceCollector:
             quantity=float(data['q']),
             side="SELL" if data['m'] else "BUY" # m=True means maker (sell), m=False means taker (buy)
         )
+        self.latest_price = trade.price
         await self.save_to_db(trade)
 
     async def process_depth(self, data):
@@ -171,9 +176,29 @@ class BinanceCollector:
         await self.save_to_db(snapshot)
 
     async def save_to_db(self, obj):
+        from app.core.db_utils import upsert_object
+        from app.models.market_data import Candle, Trade, LOBSnapshot, CandleIndicators
+        
         async with AsyncSessionLocal() as session:
             async with session.begin():
-                session.add(obj)
+                # Determine index elements based on object type
+                if isinstance(obj, Candle):
+                    index_elements = ['time', 'symbol']
+                elif isinstance(obj, Trade):
+                    index_elements = ['time', 'symbol', 'trade_id']
+                elif isinstance(obj, LOBSnapshot):
+                    index_elements = ['time', 'symbol']
+                elif isinstance(obj, CandleIndicators):
+                    index_elements = ['time', 'symbol']
+                else:
+                    # Fallback for unknown types (or just add if no PK conflict expected)
+                    session.add(obj)
+                    return
+
+                # Convert object to dict (excluding internal SQLAlchemy state)
+                values = {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
+                
+                await upsert_object(session, type(obj), values, index_elements)
     
     def stop(self):
         self.running = False

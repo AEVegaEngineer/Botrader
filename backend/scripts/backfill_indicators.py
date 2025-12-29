@@ -6,6 +6,7 @@ from sqlalchemy import text
 from app.core.database import engine, AsyncSessionLocal
 from app.models.market_data import CandleIndicators
 from app.lib.indicators import compute_indicators
+from app.core.db_utils import upsert_object
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -38,23 +39,25 @@ async def save_indicators(symbol: str, df: pd.DataFrame):
                 if row.isna().any():
                     continue
                     
-                indicator = CandleIndicators(
-                    time=time,
-                    symbol=symbol,
-                    sma_20=row.get('SMA_20'),
-                    ema_20=row.get('EMA_20'),
-                    sma_50=row.get('SMA_50'),
-                    ema_50=row.get('EMA_50'),
-                    rsi_14=row.get('RSI_14'),
-                    macd=row.get('MACD'),
-                    macd_signal=row.get('MACD_SIGNAL'),
-                    macd_diff=row.get('MACD_DIFF'),
-                    bb_lower=row.get('BBL_20_2.0'),
-                    bb_middle=row.get('BBM_20_2.0'),
-                    bb_upper=row.get('BBU_20_2.0'),
-                    atr_14=row.get('ATR_14')
-                )
-                session.add(indicator)
+                # Convert to dict
+                values = {
+                    'time': time,
+                    'symbol': symbol,
+                    'sma_20': row.get('SMA_20'),
+                    'ema_20': row.get('EMA_20'),
+                    'sma_50': row.get('SMA_50'),
+                    'ema_50': row.get('EMA_50'),
+                    'rsi_14': row.get('RSI_14'),
+                    'macd': row.get('MACD'),
+                    'macd_signal': row.get('MACD_SIGNAL'),
+                    'macd_diff': row.get('MACD_DIFF'),
+                    'bb_lower': row.get('BBL_20_2.0'),
+                    'bb_middle': row.get('BBM_20_2.0'),
+                    'bb_upper': row.get('BBU_20_2.0'),
+                    'atr_14': row.get('ATR_14')
+                }
+                
+                await upsert_object(session, CandleIndicators, values, ['time', 'symbol'])
                 
     logger.info(f"Saved indicators for {symbol}")
 

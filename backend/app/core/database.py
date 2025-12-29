@@ -5,7 +5,7 @@ from app.core.config import settings
 
 DATABASE_URL = settings.DATABASE_URL
 
-engine = create_async_engine(DATABASE_URL, echo=True)
+engine = create_async_engine(DATABASE_URL, echo=False)
 
 AsyncSessionLocal = sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False
@@ -19,11 +19,14 @@ async def get_db():
 
 async def init_db():
     async with engine.begin() as conn:
+        # Create tables (this won't recreate existing tables)
         await conn.run_sync(Base.metadata.create_all)
         
         # Convert to hypertables
         # We use execute directly on the connection for raw SQL
+        # These will only create hypertables if they don't exist, preserving existing data
         await conn.execute(text("SELECT create_hypertable('candles', 'time', if_not_exists => TRUE, migrate_data => TRUE);"))
         await conn.execute(text("SELECT create_hypertable('trades', 'time', if_not_exists => TRUE, migrate_data => TRUE);"))
         await conn.execute(text("SELECT create_hypertable('lob_snapshots', 'time', if_not_exists => TRUE, migrate_data => TRUE);"))
         await conn.execute(text("SELECT create_hypertable('candle_indicators', 'time', if_not_exists => TRUE, migrate_data => TRUE);"))
+        await conn.execute(text("SELECT create_hypertable('paper_trades', 'time', if_not_exists => TRUE, migrate_data => TRUE);"))

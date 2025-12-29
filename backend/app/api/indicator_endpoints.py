@@ -4,7 +4,7 @@ Supports chart visualization with SMA, EMA, RSI, MACD, etc.
 """
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import logging
 
 logger = logging.getLogger(__name__)
@@ -19,30 +19,117 @@ router = APIRouter(prefix="/api/v1/indicators", tags=["indicators"])
 async def get_candles(
     symbol: str = Query("BTCUSDT", description="Trading symbol"),
     interval: str = Query("1m", description="Candle interval"),
-    limit: int = Query(500, description="Number of candles to return")
+    limit: int = Query(500, description="Number of candles to return"),
+    hours_back: Optional[int] = Query(None, description="Hours back from now to fetch (auto-calculated if not provided)")
 ):
     """
     Get historical candle data with volume.
     
     Returns OHLCV data for charting.
+    Aggregates 1-minute candles into the requested interval.
+    Uses time-based window to avoid gaps in data.
     """
     try:
-        # In production, query from TimescaleDB
-        # Mock data for now
+        from app.core.database import engine
+        from sqlalchemy import text
+        
+        # Map interval strings to PostgreSQL interval format
+        interval_map = {
+            '1m': '1 minute',
+            '3m': '3 minutes',
+            '5m': '5 minutes',
+            '15m': '15 minutes',
+            '30m': '30 minutes',
+            '1h': '1 hour',
+            '2h': '2 hours',
+            '4h': '4 hours',
+            '6h': '6 hours',
+            '8h': '8 hours',
+            '12h': '12 hours',
+            '1d': '1 day',
+            '3d': '3 days',
+            '1w': '1 week',
+            '1M': '1 month'
+        }
+        
+        pg_interval = interval_map.get(interval, '1 minute')
+        
+        # Calculate time window based on interval if not provided
+        if hours_back is None:
+            # Default hours back based on interval to show reasonable amount of data
+            hours_back_map = {
+                '1m': 2,      # 2 hours for 1m = ~120 candles
+                '3m': 6,      # 6 hours for 3m = ~120 candles
+                '5m': 10,     # 10 hours for 5m = ~120 candles
+                '15m': 24,    # 24 hours for 15m = ~96 candles
+                '30m': 48,    # 48 hours for 30m = ~96 candles
+                '1h': 72,     # 3 days for 1h = ~72 candles
+                '2h': 168,    # 7 days for 2h = ~84 candles
+                '4h': 336,    # 14 days for 4h = ~84 candles
+                '6h': 504,    # 21 days for 6h = ~84 candles
+                '8h': 672,    # 28 days for 8h = ~84 candles
+                '12h': 720,   # 30 days for 12h = ~60 candles
+                '1d': 720,    # 30 days for 1d = ~30 candles
+                '3d': 2160,   # 90 days for 3d = ~30 candles
+                '1w': 5040,   # 210 days for 1w = ~30 candles
+                '1M': 21600   # 900 days for 1M = ~30 candles
+            }
+            hours_back = hours_back_map.get(interval, 24)
+        
+        # Calculate start time
+        now = datetime.now(timezone.utc)
+        start_time = now - timedelta(hours=hours_back)
+        
+        # Use time_bucket to aggregate candles
+        # Filter by time window to avoid gaps
+        query = text(f"""
+            WITH recent_candles AS (
+                SELECT time, open, high, low, close, volume
+                FROM candles
+                WHERE symbol = :symbol
+                  AND time >= :start_time
+                ORDER BY time DESC
+            )
+            SELECT 
+                time_bucket('{pg_interval}'::interval, time) AS time,
+                FIRST(open, time) AS open,
+                MAX(high) AS high,
+                MIN(low) AS low,
+                LAST(close, time) AS close,
+                SUM(volume) AS volume
+            FROM recent_candles
+            GROUP BY time_bucket('{pg_interval}'::interval, time)
+            ORDER BY time DESC
+            LIMIT :limit
+        """)
+        
+        async with engine.connect() as conn:
+            result = await conn.execute(query, {
+                "symbol": symbol,
+                "start_time": start_time,
+                "limit": limit
+            })
+            rows = result.fetchall()
+            
+        candles = [
+            {
+                "time": row.time.isoformat(),
+                "open": row.open,
+                "high": row.high,
+                "low": row.low,
+                "close": row.close,
+                "volume": row.volume
+            }
+            for row in rows
+        ]
+        
+        # Return in chronological order
+        candles.reverse()
+        
         return {
             "symbol": symbol,
             "interval": interval,
-            "candles": [
-                # Example format:
-                # {
-                #     "timestamp": "2024-01-01T00:00:00Z",
-                #     "open": 50000.0,
-                #     "high": 50500.0,
-                #     "low": 49800.0,
-                #     "close": 50200.0,
-                #     "volume": 1500000.0
-                # }
-            ]
+            "candles": candles
         }
     except Exception as e:
         logger.error(f"Error fetching candles: {e}")

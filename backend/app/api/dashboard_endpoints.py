@@ -7,6 +7,9 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 import logging
+from sqlalchemy import text
+from app.core.database import engine
+from app.analytics.performance import TradeRecord, PerformanceMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +20,36 @@ _performance_analyzer = None
 _strategy_registry = None
 _intervention_log = None
 _current_explainer = None
+
+async def _get_trades_from_db(limit: int = 10000) -> List[Dict]:
+    """Get trades from database"""
+    try:
+        query = text("""
+            SELECT time, symbol, side, quantity, price, pnl, capital_after, strategy
+            FROM paper_trades
+            ORDER BY time ASC
+            LIMIT :limit
+        """)
+        async with engine.connect() as conn:
+            result = await conn.execute(query, {"limit": limit})
+            rows = result.fetchall()
+            
+        trades = []
+        for row in rows:
+            trades.append({
+                "time": row.time,
+                "symbol": row.symbol,
+                "side": row.side,
+                "quantity": float(row.quantity),
+                "price": float(row.price),
+                "pnl": float(row.pnl) if row.pnl is not None else None,
+                "capital_after": float(row.capital_after) if row.capital_after else None,
+                "strategy": row.strategy
+            })
+        return trades
+    except Exception as e:
+        logger.error(f"Error fetching trades from database: {e}")
+        return []
 
 # ============================================================================
 # Performance Metrics Endpoints
@@ -43,25 +76,141 @@ class PerformanceMetricsResponse(BaseModel):
 async def get_performance_metrics():
     """Get current performance metrics"""
     try:
-        # In production, would fetch from live trading data
-        # For now, return mock data
-        return PerformanceMetricsResponse(
-            total_return=0.15,
-            annualized_return=0.45,
-            sharpe_ratio=1.8,
-            sortino_ratio=2.2,
-            calmar_ratio=3.5,
-            max_drawdown=-0.08,
-            current_drawdown=-0.02,
-            total_trades=150,
-            win_rate=0.58,
-            avg_win=250.0,
-            avg_loss=180.0,
-            profit_factor=1.6,
-            turnover=2.5,
-            total_fees=1200.0,
-            fees_pct_of_pnl=0.08
-        )
+        if _performance_analyzer is None:
+            # Return empty metrics if analyzer not initialized
+            return PerformanceMetricsResponse(
+                total_return=0.0,
+                annualized_return=0.0,
+                sharpe_ratio=0.0,
+                sortino_ratio=0.0,
+                calmar_ratio=0.0,
+                max_drawdown=0.0,
+                current_drawdown=0.0,
+                total_trades=0,
+                win_rate=0.0,
+                avg_win=0.0,
+                avg_loss=0.0,
+                profit_factor=0.0,
+                turnover=0.0,
+                total_fees=0.0,
+                fees_pct_of_pnl=0.0
+            )
+        
+        # Get trades from database
+        trades_data = await _get_trades_from_db(limit=10000)
+        
+        if not trades_data:
+            # No trades yet
+            return PerformanceMetricsResponse(
+                total_return=0.0,
+                annualized_return=0.0,
+                sharpe_ratio=0.0,
+                sortino_ratio=0.0,
+                calmar_ratio=0.0,
+                max_drawdown=0.0,
+                current_drawdown=0.0,
+                total_trades=0,
+                win_rate=0.0,
+                avg_win=0.0,
+                avg_loss=0.0,
+                profit_factor=0.0,
+                turnover=0.0,
+                total_fees=0.0,
+                fees_pct_of_pnl=0.0
+            )
+        
+        # Build equity curve from capital_after values or calculate from trades
+        equity_curve = []
+        timestamps = []
+        initial_balance = 10000.0  # Default initial capital
+        
+        # Check if we have capital_after values
+        has_capital_after = any(t.get('capital_after') is not None for t in trades_data)
+        
+        if has_capital_after:
+            # Use capital_after values when available
+            for trade in trades_data:
+                if trade.get('capital_after') is not None:
+                    equity_curve.append(trade['capital_after'])
+                    timestamps.append(trade['time'])
+            # Calculate initial balance from first trade
+            if trades_data and trades_data[0].get('capital_after') is not None:
+                first_trade = trades_data[0]
+                if first_trade['side'] == 'BUY':
+                    # Capital before = capital_after + cost
+                    initial_balance = first_trade['capital_after'] + (first_trade['quantity'] * first_trade['price'])
+                elif first_trade['side'] == 'SELL':
+                    # Capital before = capital_after - revenue
+                    initial_balance = first_trade['capital_after'] - (first_trade['quantity'] * first_trade['price'])
+        else:
+            # Calculate from trades
+            current_balance = initial_balance
+            for trade in trades_data:
+                if trade['side'] == 'BUY':
+                    current_balance -= trade['quantity'] * trade['price']
+                elif trade['side'] == 'SELL':
+                    current_balance += trade['quantity'] * trade['price']
+                equity_curve.append(current_balance)
+                timestamps.append(trade['time'])
+        
+        # Convert trades to TradeRecord format
+        trade_records = []
+        for trade in trades_data:
+            trade_records.append(TradeRecord(
+                timestamp=trade['time'],
+                symbol=trade['symbol'],
+                side=trade['side'],
+                quantity=trade['quantity'],
+                price=trade['price'],
+                fee=0.0,  # Paper trading has no fees
+                pnl=trade.get('pnl')
+            ))
+        
+        # Calculate metrics
+        if equity_curve and timestamps:
+            metrics = _performance_analyzer.calculate_metrics(
+                equity_curve=equity_curve,
+                trades=trade_records,
+                timestamps=timestamps,
+                initial_balance=initial_balance
+            )
+            
+            return PerformanceMetricsResponse(
+                total_return=metrics.total_return,
+                annualized_return=metrics.annualized_return,
+                sharpe_ratio=metrics.sharpe_ratio,
+                sortino_ratio=metrics.sortino_ratio,
+                calmar_ratio=metrics.calmar_ratio,
+                max_drawdown=metrics.max_drawdown,
+                current_drawdown=metrics.current_drawdown,
+                total_trades=metrics.total_trades,
+                win_rate=metrics.win_rate,
+                avg_win=metrics.avg_win,
+                avg_loss=metrics.avg_loss,
+                profit_factor=metrics.profit_factor,
+                turnover=metrics.turnover,
+                total_fees=metrics.total_fees,
+                fees_pct_of_pnl=metrics.fees_pct_of_pnl
+            )
+        else:
+            # No data
+            return PerformanceMetricsResponse(
+                total_return=0.0,
+                annualized_return=0.0,
+                sharpe_ratio=0.0,
+                sortino_ratio=0.0,
+                calmar_ratio=0.0,
+                max_drawdown=0.0,
+                current_drawdown=0.0,
+                total_trades=0,
+                win_rate=0.0,
+                avg_win=0.0,
+                avg_loss=0.0,
+                profit_factor=0.0,
+                turnover=0.0,
+                total_fees=0.0,
+                fees_pct_of_pnl=0.0
+            )
     except Exception as e:
         logger.error(f"Error fetching performance metrics: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -73,7 +222,7 @@ async def get_performance_history(
 ):
     """Get historical performance data"""
     try:
-        # Mock data - in production, query from database
+        # Return empty data until real trading history exists
         return {
             "timestamps": [],
             "equity_curve": [],
@@ -89,22 +238,9 @@ async def get_performance_history(
 async def get_performance_by_strategy():
     """Get performance breakdown by strategy"""
     try:
-        # Mock data
+        # Return empty until strategies have performance data
         return {
-            "strategies": [
-                {
-                    "name": "Baseline RSI",
-                    "total_return": 0.12,
-                    "sharpe_ratio": 1.5,
-                    "total_trades": 50
-                },
-                {
-                    "name": "LSTM Model",
-                    "total_return": 0.18,
-                    "sharpe_ratio": 2.1,
-                    "total_trades": 100
-                }
-            ]
+            "strategies": []
         }
     except Exception as e:
         logger.error(f"Error fetching strategy performance: {e}")
@@ -119,34 +255,9 @@ async def list_strategies():
     """List all registered strategies"""
     try:
         if _strategy_registry is None:
-            # Return mock data if registry not initialized
+            # Return empty array if registry not initialized
             return {
-                "strategies": [
-                    {
-                        "id": "baseline-rsi",
-                        "name": "Baseline RSI Strategy",
-                        "type": "rule_based",
-                        "version": "1.0.0",
-                        "is_active": True,
-                        "backtest_stats": {
-                            "sharpe_ratio": 1.5,
-                            "max_drawdown": -0.10,
-                            "total_return": 0.25
-                        }
-                    },
-                    {
-                        "id": "lstm-v1",
-                        "name": "LSTM Price Predictor",
-                        "type": "lstm",
-                        "version": "1.0.0",
-                        "is_active": False,
-                        "backtest_stats": {
-                            "sharpe_ratio": 2.1,
-                            "max_drawdown": -0.08,
-                            "total_return": 0.35
-                        }
-                    }
-                ]
+                "strategies": []
             }
         
         strategies = _strategy_registry.list_all()
@@ -292,12 +403,12 @@ async def get_feature_importance(
 ):
     """Get global feature importance"""
     try:
-        # Mock data for now
+        # Return empty until model is active
         return {
-            "features": ["RSI", "SMA_20", "Volume", "MACD", "BB_Width", "EMA_50"],
-            "importance": [0.25, 0.20, 0.18, 0.15, 0.12, 0.10],
-            "method": "SHAP TreeExplainer",
-            "model_id": model_id or "active"
+            "features": [],
+            "importance": [],
+            "method": None,
+            "model_id": model_id or "none"
         }
     except Exception as e:
         logger.error(f"Error fetching feature importance: {e}")
@@ -311,16 +422,12 @@ class ExplainPredictionRequest(BaseModel):
 async def explain_prediction(request: ExplainPredictionRequest):
     """Explain a specific prediction"""
     try:
-        # Mock explanation
+        # Return null until model is active
         return {
-            "base_value": 0.5,
-            "prediction": 0.72,
-            "contributions": [
-                {"feature": "RSI", "value": 65.5, "contribution": 0.12},
-                {"feature": "SMA_20", "value": 50100, "contribution": 0.08},
-                {"feature": "Volume", "value": 1500000, "contribution": 0.02}
-            ],
-            "method": "SHAP TreeExplainer"
+            "base_value": None,
+            "prediction": None,
+            "contributions": [],
+            "method": None
         }
     except Exception as e:
         logger.error(f"Error explaining prediction: {e}")
@@ -333,11 +440,11 @@ async def get_shap_summary(
 ):
     """Get SHAP summary data for visualization"""
     try:
-        # Mock data
+        # Return empty until model is active
         return {
             "summary": [],
-            "num_samples": 1000,
-            "method": "SHAP summary"
+            "num_samples": 0,
+            "method": None
         }
     except Exception as e:
         logger.error(f"Error fetching SHAP summary: {e}")

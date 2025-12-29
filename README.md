@@ -1,171 +1,328 @@
-# Botrader: Advanced AI-Driven Algorithmic Trading System 🚀
+# Botrader: AI-Driven Algorithmic Trading System 🚀
 
-Botrader is an institutional-grade, locally deployed algorithmic trading platform designed for Bitcoin and crypto markets. It evolves beyond simple technical analysis bots by integrating deep learning, high-frequency order book features, and robust risk management into a unified, containerized system.
+Botrader is a locally deployed algorithmic trading platform for Bitcoin and crypto markets. It features live data collection, ML model training with MLflow experiment tracking, paper trading simulation, and a professional React dashboard for monitoring and control.
 
-![Dashboard Preview](https://placehold.co/1200x600/1e1e1e/FFF?text=Botrader+Dashboard+Preview)
+## 🌟 Current Features (Implemented & Working)
 
-## 🌟 Key Features
+### ✅ Data Infrastructure
+*   **Live Data Collection**: Binance WebSocket streaming for real-time 1-minute candles
+*   **TimescaleDB**: Time-series database with 93,000+ historical candles
+*   **Historical Backfill**: Script to fetch data from any start date to present
+*   **Technical Indicators**: Auto-computed SMA, EMA, RSI, MACD, Bollinger Bands, ATR
 
-### 🧠 Advanced AI & Machine Learning
-*   **Multi-Model Architecture**: Supports LightGBM (Gradient Boosting), LSTM/GRU (Recurrent Nets), Transformers (Attention mechanisms), and DeepLOB (CNNs for Order Books).
-*   **Reinforcement Learning**: Experimental RL agents (PPO/DQN) that learn optimal execution policies.
-*   **Explainable AI**: Integrated **SHAP** (Shapley Additive Explanations) to visualize exactly *why* the model made a trade decision.
-*   **MLOps Pipeline**: Local **MLflow** integration for tracking experiments, model versioning, and performance metrics.
+### ✅ Machine Learning
+*   **MLflow Integration**: Experiment tracking and model versioning
+*   **Trained Models**: LightGBM (50% accuracy) and Logistic Regression (51% accuracy)
+*   **Dataset Builder**: Automated feature engineering from raw OHLCV data
+*   **Models Available**: `train.py`, `train_ensemble.py`, `train_deep.py`, `train_transformer.py`
 
-### 🛡️ Institutional Risk Management
-*   **Volatility Targeting**: Automatically adjusts position sizes based on market volatility to maintain a constant risk profile.
-*   **Portfolio Optimization**: Mean-Variance and Risk-Parity optimizers for multi-asset allocation.
-*   **Circuit Breakers**: Automatic kill switches for high latency, error rates, or excessive drawdown.
-*   **Audit Trail**: Immutable logs of all manual interventions and strategy changes.
+### ✅ Paper Trading
+*   **Live Simulation**: Paper trader monitors database for new candles
+*   **Current Strategy**: RSI-based (Buy RSI<30, Sell RSI>70)
+*   **Risk Management**: Position sizing, trade risk validation, circuit breakers
+*   **Smart Execution**: TWAP/VWAP algorithms for order execution
 
-### ⚡ Smart Execution
-*   **Algo Execution**: Built-in **TWAP** (Time-Weighted Average Price) and **VWAP** (Volume-Weighted Average Price) algorithms for minimizing slippage on large orders.
-*   **Liquidity Awareness**: Dynamically switches between aggressive (Market) and passive (Limit) orders based on order book depth.
+### ✅ Professional Dashboard
+*   **Real-time Price Chart**: TradingView-style candlestick chart with multiple intervals
+*   **Bot Controls**: Start/Stop bot with visual status indicator
+*   **Performance Metrics**: Total return, Sharpe ratio, drawdown, win rate
+*   **Trade History**: Real-time display of executed trades
+*   **AI Insights Tab**: Model architecture and feature importance (ready for ML integration)
+*   **Strategy Manager**: View and manage trading strategies
+*   **Audit Log**: Record of all manual interventions
 
-### 📊 Professional Dashboard
-*   **Real-time Analytics**: Live equity curve, rolling Sharpe ratio, Sortino ratio, and drawdown tracking.
-*   **Strategy Manager**: Hot-swap active strategies, view backtest stats, and manage deployments.
-*   **Interactive Charts**: TradingView-style charts with overlay indicators (SMA, EMA, Bollinger Bands) and sub-panels (RSI, MACD, Volume).
-*   **System Status**: Real-time monitoring of system health, latency, and risk limits.
-
-### 🏗️ Robust Infrastructure
-*   **TimescaleDB**: High-performance time-series database for storing billions of tick-level data points.
-*   **Dockerized**: Entire stack (Frontend, Backend, DB, MLflow, Prometheus) runs in isolated containers.
-*   **Local-First**: Complete data sovereignty—no cloud dependencies required.
+### 📍 Current Status
+- **Data Collection**: ✅ Working - Live streaming from Binance
+- **Bot Controls**: ✅ Working - Start/Stop with visual feedback
+- **Paper Trading**: ✅ Working - RSI strategy executing trades
+- **ML Models**: ⚠️ Trained but not yet integrated into live trading
+- **Dashboard**: ✅ Working - All tabs functional, displays real data
 
 ---
 
-## 📘 Comprehensive User Guide
+## 📘 Quick Start Guide
 
-### 1. Concepts for Non-Traders 🎓
+### 1. Prerequisites
+*   Docker Desktop installed and running
+*   Binance Account (for testnet API, no real funds needed)
 
-Before running the bot, it's helpful to understand a few key concepts:
+### 2. Initial Setup
 
-*   **OHLCV**: The standard format for price data (Open, High, Low, Close, Volume) over a specific time period (e.g., 1 minute).
-*   **Order Book (LOB)**: The list of all buy and sell orders currently open in the market. "Level 2" data shows the depth of liquidity at different price levels.
-*   **Alpha**: The "edge" or excess return generated by a strategy above a benchmark (like just holding Bitcoin).
-*   **Sharpe Ratio**: A measure of risk-adjusted return. Higher is better. A Sharpe > 1 is good; > 2 is excellent.
-*   **Drawdown**: The peak-to-trough decline in account value. We want to minimize this to protect capital.
-*   **Slippage**: The difference between the expected price of a trade and the price at which the trade is executed.
-
-### 2. Setup & Installation 🛠️
-
-**Prerequisites**:
-*   Docker Desktop installed and running.
-*   Binance Account (API Key & Secret).
-
-**Steps**:
-1.  **Clone the repository**:
-    ```bash
-    git clone https://github.com/yourusername/botrader.git
-    cd botrader
-    ```
-
-2.  **Configure Environment**:
-    Copy the example env file:
-    ```bash
-    cp .env.example .env
-    ```
-    Edit `.env` with your credentials:
-    ```env
-    BINANCE_API_KEY=your_key
-    BINANCE_API_SECRET=your_secret
-    BINANCE_TESTNET=True  # Keep True for safety!
-    ```
-
-3.  **Launch System**:
-    ```bash
-    docker-compose up -d --build
-    ```
-    This starts the Database, Backend, Frontend, and MLflow server.
-
-### 3. Workflow for Maximum Performance 🚀
-
-To get the most out of Botrader, follow this iterative cycle:
-
-#### Step A: Data Collection 📥
-The system needs data to learn.
-1.  Ensure the `collector` service is running (it starts automatically).
-2.  It will stream live data into TimescaleDB.
-3.  *Tip*: Let it run for a few days to build a rich history, or use the backfill scripts (if implemented) to import historical data.
-
-#### Step B: Dataset Building 🏗️
-Convert raw data into training features.
 ```bash
-# Enter the backend container
-docker-compose exec backend bash
+# Clone the repository
+git clone https://github.com/yourusername/botrader.git
+cd botrader
 
-# Build standard dataset (OHLCV + Indicators)
-python scripts/build_dataset.py --symbol BTCUSDT --timeframe 5m
-
-# Build high-frequency LOB dataset (Optional, advanced)
-python scripts/build_lob_dataset.py --depth 10
+# Configure environment
+cp .env.example .env
+# Edit .env with your testnet API credentials
 ```
 
-#### Step C: Model Training 🏋️
-Train the AI models on your data.
-```bash
-# Train an ensemble of LightGBM and LSTM
-python -m app.ml.train_ensemble --dataset dataset.parquet
-
-# Or train a Reinforcement Learning agent
-python -m app.ml.train_rl --timesteps 100000
+**.env Configuration:**
+```env
+BINANCE_API_KEY=your_testnet_key
+BINANCE_API_SECRET=your_testnet_secret
+BINANCE_TESTNET=True  # Always keep True for safety!
 ```
-*The training script automatically logs metrics to MLflow and registers the best model.*
 
-#### Step D: Backtesting 🧪
-Verify the model before risking money.
+### 3. Launch All Services
+
 ```bash
-python -m app.backtest_main --strategy best_model_v1 --days 30
+docker-compose up --build -d
 ```
-Check the output for Sharpe Ratio and Max Drawdown. If Sharpe < 1.0, go back to Step C with different parameters or features.
 
-#### Step E: Live Trading 🔴
-1.  Open the Dashboard at `http://localhost:3001`.
-2.  Go to the **Strategies** tab.
-3.  You should see your trained model listed. Click **Activate**.
-4.  Go to the **Overview** tab and click **Start Bot**.
-5.  Monitor the **Insights** tab to see SHAP explanations for why the bot is buying or selling.
+This starts:
+- **Database** (TimescaleDB) on port 5432
+- **Backend** (FastAPI) on port 8001
+- **Frontend** (Next.js) on port 3001
+- **MLflow** (Tracking) on port 5001
+- **Collector** (Data ingestion)
+- **Paper Trader** (Live simulation)
 
-### 4. Dashboard Manual 🖥️
+### 4. Access the Dashboard
 
-*   **Overview**: Your command center. Shows the live price chart, recent trades, and the "Emergency Stop" button. Use this for daily monitoring.
-*   **Performance**: Deep dive into metrics. Look at "Win Rate" and "Profit Factor" to judge strategy health.
-*   **Strategies**: The control room for your AI models. View their backtest stats and toggle which one is in control.
-*   **Insights**: The "Brain" view. See which features (e.g., "RSI is high", "Volume spike") are driving the current decision.
-*   **Audit Log**: A secure record of every manual action (stops, starts, strategy changes) for accountability.
+Open your browser to **http://localhost:3001**
+
+You'll see:
+- **Overview Tab**: Price chart, bot controls, trade history
+- **Performance Tab**: Metrics dashboard (shows 0% until trades execute)
+- **Strategies Tab**: Available trading strategies
+- **AI Insights Tab**: Model information and feature importance
+- **Audit Log Tab**: Record of actions
+
+### 5. Start Trading
+
+1. Click the **"Start Bot"** button (green)
+2. Button changes to **"Stop Bot"** (red) - bot is now running
+3. Wait ~14-15 minutes for RSI calculation window
+4. Trades will appear in Trade History when RSI crosses thresholds
+
+---
+
+## 🔬 Advanced Workflows
+
+### Generate Historical Dataset
+
+If you need more historical data:
+
+```bash
+# Enter backend container
+docker exec -it botrader-backend-1 bash
+
+# Backfill historical data from specific date
+python backend/scripts/backfill_historical.py
+
+# Build dataset with indicators
+python backend/scripts/build_dataset.py
+
+# Exit container
+exit
+```
+
+This creates `dataset.parquet` with OHLCV + indicators ready for ML training.
+
+### Train Machine Learning Models
+
+```bash
+# Enter backend container
+docker exec -it botrader-backend-1 bash
+
+# Train baseline models (LightGBM + Logistic Regression)
+python -m app.ml.train
+
+# Train ensemble meta-learner
+python -m app.ml.train_ensemble
+
+# Train deep learning models
+python -m app.ml.train_deep
+
+# Exit container
+exit
+```
+
+**Check Training Results:**
+- Open MLflow UI: **http://localhost:5001**
+- View experiments, metrics, and model artifacts
+
+### Run Backtests
+
+```bash
+docker exec -it botrader-backend-1 bash
+
+# Backtest RSI strategy
+python -m app.backtest_main --strategy simple_rsi
+
+# Backtest RSI+SMA combination
+python -m app.backtest_main --strategy rsi_sma
+```
+
+**Interpret Results:**
+- **Sharpe Ratio > 1.0** = Good risk-adjusted returns
+- **Win Rate > 50%** = More winning trades than losing
+- **Max Drawdown** = Worst peak-to-trough loss
+
+---
+
+## 📊 Dashboard Guide
+
+### Overview Tab
+- **Price Chart**: Live BTC/USDT price with selectable intervals (1m, 5m, 15m, 1h)
+- **Bot Controls**: 
+  - Green "Start Bot" button activates paper trading
+  - Red "Stop Bot" button halts trading
+  - Emergency Stop for immediate halt + position close
+- **Trade History**: Scrollable table of all executed trades
+- **Current Position**: Shows if bot is long, short, or neutral
+
+### Performance Tab
+Shows metrics after trades execute:
+- **Total Return**: Overall profit/loss percentage
+- **Sharpe Ratio**: Risk-adjusted return measure
+- **Max Drawdown**: Largest peak-to-trough decline
+- **Win Rate**: Percentage of profitable trades
+- **Trading Stats**: Total trades, avg win, avg loss, profit factor
+
+### Strategies Tab
+- Lists available trading strategies
+- Currently shows: "No strategies found" (ML models not yet registered)
+- Future: Activate/deactivate ML models here
+
+### AI Insights Tab
+- **Active Model**: Currently shows "none" (RSI strategy is rule-based)
+- **Feature Importance**: Will show SHAP values when ML model active
+- **Model Architecture**: Displays model structure and parameters
+
+### Audit Log Tab
+- Records all manual interventions
+- Logs strategy changes
+- Emergency stop events
+- System state changes
+
+---
+
+## 🤖 How Paper Trading Works
+
+**Current Implementation:**
+
+1. **Data Flow**:
+   - Collector streams live 1m candles from Binance → TimescaleDB
+   - Paper trader polls database every 5 seconds for new candles
+   
+2. **Strategy Execution**:
+   - Accumulates 14+ candles for RSI calculation
+   - Calculates RSI(14) on price series
+   - **Buy Signal**: RSI < 30 (oversold)
+   - **Sell Signal**: RSI > 70 (overbought)
+
+3. **Risk Management**:
+   - Risk manager validates each trade
+   - Position sizing based on available capital
+   - Circuit breakers prevent excessive losses
+
+4. **Trade Execution**:
+   - Execution engine simulates TWAP order placement
+   - Virtual portfolio tracks positions and PnL
+   - Results logged to trade history
+
+**Why "Active Model: none"?**
+
+The ML models (LightGBM, LogReg) are trained and stored in MLflow but not yet integrated into the paper trader. Current trading uses the hardcoded RSI strategy in `paper_main.py`.
+
+---
+
+## 🔧 Integration Next Steps
+
+To use ML models instead of RSI:
+
+1. **Load Model from MLflow**:
+   ```python
+   import mlflow
+   model = mlflow.sklearn.load_model("runs:/RUN_ID/model")
+   ```
+
+2. **Replace RSI Logic**:
+   - Compute same features model was trained on
+   - Get prediction: `pred = model.predict(features)`
+   - Execute trade based on prediction
+
+3. **Update Dashboard**:
+   - Register model in Strategy Registry
+   - Display in Strategies tab
+   - Show SHAP explanations in Insights
+
+---
+
+## 📈 Monitoring Stack
+
+**MLflow Tracking** - `http://localhost:5001`
+- View all training experiments
+- Compare model metrics
+- Download trained model artifacts
+
+**TimescaleDB** - `localhost:5432`
+- Database: `trading`
+- User: `postgres`
+- Tables: `candles`, `indicators`, `trades`
+
+**Backend API** - `http://localhost:8001`
+- Interactive docs: `http://localhost:8001/docs`
+- API endpoints for bot control, strategies, performance
 
 ---
 
 ## ⚠️ Risk Warning
 
-Algorithmic trading involves significant risk. This software is provided for educational and research purposes.
-*   **Always** start with `BINANCE_TESTNET=True`.
-*   **Never** trade money you cannot afford to lose.
-*   **Monitor** the bot closely during initial deployment.
-*   Use the **Circuit Breakers** configuration in `config.py` to set hard limits on daily loss.
+**This is educational software for learning algorithmic trading.**
+
+- ✅ **ALWAYS** use `BINANCE_TESTNET=True`
+- ✅ Start with paper trading (no real money)
+- ✅ Monitor the bot during initial runs
+- ❌ **NEVER** use real API keys without extensive testing
+- ❌ Don't trade money you can't afford to lose
+
+**Baseline Model Performance:**
+- LightGBM: 50% accuracy (random baseline)
+- LogReg: 51% accuracy (barely above random)
+- These models need improvement before real trading
 
 ---
 
-## Project Structure
+## 🗂️ Project Structure
 
 ```
 Botrader/
 ├── backend/
 │   ├── app/
-│   │   ├── analytics/    # Performance metrics
-│   │   ├── api/          # FastAPI endpoints
-│   │   ├── core/         # Config & Registry
-│   │   ├── execution/    # Smart execution (VWAP/TWAP)
-│   │   ├── ml/           # AI Models (Training & Inference)
-│   │   ├── risk/         # Risk Manager & Optimizer
-│   │   └── services/     # Data Collector
-│   └── scripts/          # Utility scripts
+│   │   ├── api/          # FastAPI endpoints (bot control, dashboard, indicators)
+│   │   ├── backtest/     # Backtesting engine and strategies
+│   │   ├── core/         # Database, config, strategy registry
+│   │   ├── execution/    # TWAP/VWAP execution algorithms
+│   │   ├── features/     # Indicator calculation (FeatureRegistry)
+│   │   ├── ml/           # Model training scripts
+│   │   ├── risk/         # Risk manager, portfolio, circuit breakers
+│   │   └── services/     # Binance collector (WebSocket)
+│   ├── scripts/          # Utility scripts (backfill, dataset builder)
+│   └── main.py           # FastAPI application
 ├── frontend/
-│   ├── app/              # Next.js Pages
-│   ├── components/       # Reusable UI (Charts, Dashboard)
-│   ├── hooks/            # React Hooks
-│   └── lib/              # API Client
-├── monitoring/           # Prometheus config
-└── docker-compose.yml
+│   ├── app/              # Next.js pages (main dashboard)
+│   ├── components/       # React components (charts, controls, tables)
+│   ├── hooks/            # React hooks (useBotData)
+│   └── lib/              # API client
+├── docker-compose.yml    # Container orchestration
+├── .env                  # Environment configuration
+└── README.md             # This file
 ```
+
+---
+
+## 📝 Recent Updates
+
+**December 4, 2024:**
+- ✅ Removed all mock/placeholder data from dashboard
+- ✅ Fixed Start/Stop bot button functionality
+- ✅ Added bot control API endpoints (`/start`, `/stop`, `/status`)
+- ✅ Verified paper trader executes RSI-based trades
+- ✅ Fixed paper trader RSI calculation (uses `ta` library)
+- ✅ Backend now returns real data or zeros (no fake metrics)
+
+**System Status:** Paper trading operational, ML models trained but not integrated
