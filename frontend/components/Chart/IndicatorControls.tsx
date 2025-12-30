@@ -46,7 +46,6 @@ export function IndicatorControls({ indicators, onToggle }: IndicatorControlsPro
           size="xs" 
           checked={indicators.rsi}
           onChange={(e) => onToggle('rsi', e.currentTarget.checked)}
-          disabled
         />
         <Switch 
           label="MACD" 

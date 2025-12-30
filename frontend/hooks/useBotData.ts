@@ -15,6 +15,8 @@ export function useBotData() {
   const [showEMA, setShowEMA] = useState(false);
   const [bbData, setBbData] = useState<any[]>([]);
   const [showBB, setShowBB] = useState(false);
+  const [rsiData, setRsiData] = useState<any[]>([]);
+  const [showRSI, setShowRSI] = useState(false);
   const [performance, setPerformance] = useState({
     wins: 0,
     losses: 0,
@@ -129,10 +131,25 @@ export function useBotData() {
       } else {
         setBbData([]);
       }
+
+      // Fetch RSI data if enabled
+      if (showRSI) {
+        try {
+          const rsiData = await api.getRSI("BTCUSDT", 14, chartInterval, limit);
+          if (rsiData && rsiData.data) {
+            setRsiData(rsiData.data);
+          }
+        } catch (error) {
+          console.error("Failed to fetch RSI data", error);
+          setRsiData([]);
+        }
+      } else {
+        setRsiData([]);
+      }
     } catch (error) {
       console.error("Failed to fetch bot data", error);
     }
-  }, [chartInterval, showSMA, showEMA, showBB]);
+  }, [chartInterval, showSMA, showEMA, showBB, showRSI]);
 
   useEffect(() => {
     fetchData();
@@ -172,6 +189,9 @@ export function useBotData() {
     bbData,
     showBB,
     setShowBB,
+    rsiData,
+    showRSI,
+    setShowRSI,
     performance,
     interval: chartInterval,
     setInterval: setChartInterval,

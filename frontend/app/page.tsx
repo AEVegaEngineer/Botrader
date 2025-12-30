@@ -19,7 +19,7 @@ import { ThemeToggle } from '../components/ThemeToggle';
 import { StatusBadge } from '../components/Dashboard/StatusBadge';
 
 export default function Dashboard() {
-  const { status, history, price, priceData, smaData, showSMA, setShowSMA, emaData, showEMA, setShowEMA, bbData, showBB, setShowBB, startBot, stopBot, interval, setInterval } = useBotData();
+  const { status, history, price, priceData, smaData, showSMA, setShowSMA, emaData, showEMA, setShowEMA, bbData, showBB, setShowBB, rsiData, showRSI, setShowRSI, startBot, stopBot, interval, setInterval } = useBotData();
   const { 
     riskStatus, 
     performanceMetrics, 
@@ -108,10 +108,13 @@ export default function Dashboard() {
                   showEMA={showEMA}
                   bbData={bbData}
                   showBB={showBB}
+                  rsiData={rsiData}
+                  showRSI={showRSI}
                   onIntervalChange={setInterval}
                   onToggleSMA={setShowSMA}
                   onToggleEMA={setShowEMA}
                   onToggleBB={setShowBB}
+                  onToggleRSI={setShowRSI}
                 />
                 <TradeTable trades={history} />
               </Stack>

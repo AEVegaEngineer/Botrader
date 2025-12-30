@@ -76,6 +76,16 @@ export const api = {
       return { symbol, indicator: "Bollinger Bands", period, std_dev: stdDev, interval, data: [] };
     }
   },
+  getRSI: async (symbol: string = "BTCUSDT", period: number = 14, interval: string = "1m", limit: number = 500) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/indicators/rsi?symbol=${symbol}&period=${period}&interval=${interval}&limit=${limit}`);
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      return res.json();
+    } catch (error) {
+      console.error('Failed to fetch RSI:', error);
+      return { symbol, indicator: "RSI", period, interval, overbought: 70, oversold: 30, data: [] };
+    }
+  },
   startBot: async () => {
     const res = await fetch(`${API_BASE_URL}/start`, { method: 'POST' });
     return res.json(); // Assuming backend returns something, or just check status

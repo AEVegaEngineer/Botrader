@@ -18,10 +18,13 @@ interface PriceChartProps {
   showEMA?: boolean;
   bbData?: any[];
   showBB?: boolean;
+  rsiData?: any[];
+  showRSI?: boolean;
   onIntervalChange: (interval: string) => void;
   onToggleSMA?: (show: boolean) => void;
   onToggleEMA?: (show: boolean) => void;
   onToggleBB?: (show: boolean) => void;
+  onToggleRSI?: (show: boolean) => void;
 }
 
 const INTERVALS = [
@@ -30,7 +33,7 @@ const INTERVALS = [
   '1d', '3d', '1w', '1M'
 ];
 
-export function PriceChart({ data, interval, smaData = [], showSMA = false, emaData = [], showEMA = false, bbData = [], showBB = false, onIntervalChange, onToggleSMA, onToggleEMA, onToggleBB }: PriceChartProps) {
+export function PriceChart({ data, interval, smaData = [], showSMA = false, emaData = [], showEMA = false, bbData = [], showBB = false, rsiData = [], showRSI = false, onIntervalChange, onToggleSMA, onToggleEMA, onToggleBB, onToggleRSI }: PriceChartProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
@@ -46,7 +49,7 @@ export function PriceChart({ data, interval, smaData = [], showSMA = false, emaD
     setIsMounted(true);
   }, []);
 
-  // Sync local indicators state with showSMA, showEMA, and showBB props
+  // Sync local indicators state with showSMA, showEMA, showBB, and showRSI props
   useEffect(() => {
     setIndicators(prev => ({ ...prev, sma: showSMA }));
   }, [showSMA]);
@@ -59,6 +62,10 @@ export function PriceChart({ data, interval, smaData = [], showSMA = false, emaD
     setIndicators(prev => ({ ...prev, bollinger: showBB }));
   }, [showBB]);
 
+  useEffect(() => {
+    setIndicators(prev => ({ ...prev, rsi: showRSI }));
+  }, [showRSI]);
+
   const handleToggle = (indicator: string, value: boolean) => {
     setIndicators(prev => ({ ...prev, [indicator]: value }));
     if (indicator === 'sma' && onToggleSMA) {
@@ -69,6 +76,9 @@ export function PriceChart({ data, interval, smaData = [], showSMA = false, emaD
     }
     if (indicator === 'bollinger' && onToggleBB) {
       onToggleBB(value);
+    }
+    if (indicator === 'rsi' && onToggleRSI) {
+      onToggleRSI(value);
     }
   };
 
@@ -231,6 +241,87 @@ export function PriceChart({ data, interval, smaData = [], showSMA = false, emaD
               />
             )}
           </div>
+
+          {/* RSI Sub-Chart */}
+          {showRSI && rsiData.length > 0 && isMounted && (
+            <div style={{ width: '100%', marginTop: '16px' }}>
+              <Text size="sm" fw={600} mb="xs" c="dimmed">RSI (14)</Text>
+              <ReactApexChart
+                options={{
+                  chart: {
+                    type: 'line',
+                    height: 150,
+                    background: 'transparent',
+                    toolbar: { show: false },
+                    group: 'indicators'
+                  },
+                  xaxis: {
+                    type: 'datetime',
+                    labels: {
+                      style: { colors: '#94a3b8' }
+                    },
+                    axisBorder: { show: false },
+                    axisTicks: { show: false }
+                  },
+                  yaxis: {
+                    min: 0,
+                    max: 100,
+                    tickAmount: 5,
+                    labels: {
+                      style: { colors: '#94a3b8' },
+                      formatter: (value: number) => value.toFixed(0)
+                    }
+                  },
+                  grid: {
+                    borderColor: '#334155',
+                    strokeDashArray: 3,
+                    opacity: 0.3
+                  },
+                  theme: {
+                    mode: 'dark'
+                  },
+                  stroke: {
+                    width: 2
+                  },
+                  colors: ['#8b5cf6'],
+                  annotations: {
+                    yaxis: [
+                      {
+                        y: 70,
+                        borderColor: '#ef4444',
+                        strokeDashArray: 4,
+                        label: {
+                          text: 'Overbought',
+                          style: { color: '#ef4444', fontSize: '12px' }
+                        }
+                      },
+                      {
+                        y: 30,
+                        borderColor: '#10b981',
+                        strokeDashArray: 4,
+                        label: {
+                          text: 'Oversold',
+                          style: { color: '#10b981', fontSize: '12px' }
+                        }
+                      }
+                    ]
+                  },
+                  legend: {
+                    show: false
+                  }
+                }}
+                series={[{
+                  name: 'RSI (14)',
+                  data: rsiData.map(d => ({
+                    x: new Date(d.timestamp).getTime(),
+                    y: d.value
+                  }))
+                }]}
+                type="line"
+                height={150}
+              />
+            </div>
+          )}
           
         </Paper>
       </Grid.Col>
