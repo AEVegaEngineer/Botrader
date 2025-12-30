@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   backend:
@@ -106,6 +106,21 @@ services:
     depends_on:
       - mlflow
     restart: always
+    networks:
+      - botrader-net
+
+  train-rl:
+    build: ./backend
+    command: python -m app.ml.train_rl
+    volumes:
+      - ./backend:/app
+      - ./mlruns:/mlruns
+    env_file:
+      - .env
+    depends_on:
+      - mlflow
+      - timescaledb
+    restart: "no" # Run once and exit
     networks:
       - botrader-net
 

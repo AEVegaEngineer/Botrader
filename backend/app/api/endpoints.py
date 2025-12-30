@@ -4,9 +4,11 @@ Provides emergency stop, risk monitoring, and trading control.
 """
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Tuple
 import logging
 from datetime import datetime
+from sqlalchemy import text
+from app.core.database import engine
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +40,118 @@ def set_portfolio(p):
     """Set the global portfolio (called from main app)"""
     global _portfolio
     _portfolio = p
+
+async def _calculate_current_balance() -> Tuple[float, float]:
+    """
+    Calculate current balance from trade history in database.
+    Returns (current_balance, peak_balance) tuple.
+    """
+    try:
+        # Get latest trade to find current capital_after
+        query = text("""
+            SELECT capital_after, time
+            FROM paper_trades
+            WHERE capital_after IS NOT NULL
+            ORDER BY time DESC
+            LIMIT 1
+        """)
+        
+        async with engine.connect() as conn:
+            result = await conn.execute(query)
+            row = result.fetchone()
+        
+        if row and row.capital_after is not None:
+            current_cash = float(row.capital_after)
+        else:
+            # No trades yet, use initial balance
+            current_cash = 10000.0
+        
+        # Calculate current position to get total equity
+        position_query = text("""
+            SELECT side, quantity, price
+            FROM paper_trades
+            WHERE symbol = 'BTCUSDT'
+            ORDER BY time ASC
+        """)
+        
+        async with engine.connect() as conn:
+            result = await conn.execute(position_query)
+            rows = result.fetchall()
+        
+        position = 0.0
+        for row in rows:
+            side = row.side
+            quantity = float(row.quantity)
+            if side == "BUY":
+                position += quantity
+            elif side == "SELL":
+                position -= quantity
+        
+        # Get current price to calculate unrealized PnL
+        price_query = text("""
+            SELECT close
+            FROM candles
+            WHERE symbol = 'BTCUSDT'
+            ORDER BY time DESC
+            LIMIT 1
+        """)
+        
+        current_price = None
+        async with engine.connect() as conn:
+            result = await conn.execute(price_query)
+            row = result.fetchone()
+            if row:
+                current_price = float(row.close)
+        
+        # Calculate total equity (cash + position value)
+        if position > 0 and current_price:
+            current_balance = current_cash + (position * current_price)
+        else:
+            current_balance = current_cash
+        
+        # Calculate peak balance by tracking equity at each trade point
+        # Get all trades with capital_after to calculate equity curve
+        equity_query = text("""
+            SELECT capital_after, time, side, quantity, price
+            FROM paper_trades
+            WHERE capital_after IS NOT NULL
+            ORDER BY time ASC
+        """)
+        
+        peak_balance = current_balance
+        running_position = 0.0
+        
+        async with engine.connect() as conn:
+            result = await conn.execute(equity_query)
+            rows = result.fetchall()
+            
+            for row in rows:
+                capital_after = float(row.capital_after)
+                side = row.side
+                quantity = float(row.quantity)
+                price = float(row.price)
+                
+                # Update running position BEFORE calculating equity
+                # (capital_after is AFTER the trade, so position should reflect that)
+                if side == "BUY":
+                    running_position += quantity
+                elif side == "SELL":
+                    running_position -= quantity
+                
+                # Calculate equity at this point (cash + position value)
+                # capital_after is cash after trade, running_position is position after trade
+                equity_at_point = capital_after + (running_position * price)
+                peak_balance = max(peak_balance, equity_at_point)
+        
+        # Also check current balance
+        peak_balance = max(peak_balance, current_balance)
+        
+        return current_balance, peak_balance
+        
+    except Exception as e:
+        logger.error(f"Error calculating balance from database: {e}")
+        # Fallback to risk manager balance
+        return 10000.0, 10000.0
 
 # Request/Response Models
 class EmergencyStopRequest(BaseModel):
@@ -149,15 +263,30 @@ async def get_risk_status(
     Get current risk status and metrics.
     
     Returns circuit breaker state, risk metrics, and portfolio summary.
+    Balance is calculated from actual trade history in the database.
     """
     try:
+        # Calculate actual balance from database
+        current_balance, peak_balance = await _calculate_current_balance()
+        
+        # Get base risk status
         risk_status = risk_manager.get_risk_status()
+        
+        # Update metrics with real balance from database
+        metrics = risk_status["metrics"].copy()
+        metrics["balance"] = current_balance
+        metrics["peak_balance"] = peak_balance
+        
+        # Recalculate drawdown with real balance
+        drawdown = (peak_balance - current_balance) / peak_balance if peak_balance > 0 else 0
+        metrics["drawdown_pct"] = drawdown
+        
         portfolio_summary = portfolio.get_summary()
         
         return RiskStatusResponse(
             is_halted=risk_status["is_halted"],
             circuit_breaker=risk_status["circuit_breaker"],
-            metrics=risk_status["metrics"],
+            metrics=metrics,
             limits=risk_status["limits"],
             portfolio_summary=portfolio_summary
         )
