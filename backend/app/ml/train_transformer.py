@@ -37,8 +37,8 @@ def train_transformer():
     if df is None:
         return
 
-    # Features: Indicators + Log Returns
-    feature_cols = FeatureRegistry.get_feature_names() + ['log_ret', 'log_vol']
+    # Features: Indicators + Log Returns + Normalized OHLCV
+    feature_cols = FeatureRegistry.get_feature_names() + ['log_ret', 'log_vol'] + ['norm_open', 'norm_high', 'norm_low', 'norm_volume']
     target_col = 'label'
     
     # Check columns

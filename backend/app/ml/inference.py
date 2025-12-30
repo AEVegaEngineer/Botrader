@@ -71,6 +71,13 @@ class ActionPredictor:
         # Log returns
         df['log_ret'] = np.log(df['close'] / df['close'].shift(1))
         df['log_vol'] = np.log(df['volume'] / df['volume'].shift(1)).replace([np.inf, -np.inf], 0)
+        
+        # Add normalized OHLCV features (must match build_dataset.py)
+        df['norm_open'] = (df['open'] - df['close']) / df['close']
+        df['norm_high'] = (df['high'] - df['close']) / df['close']
+        df['norm_low'] = (df['low'] - df['close']) / df['close']
+        df['norm_volume'] = np.log(df['volume'] + 1)
+        
         df = df.fillna(0)
         
         # Normalize

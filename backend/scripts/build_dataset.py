@@ -60,11 +60,20 @@ async def main():
     df['log_ret'] = np.log(df['close'] / df['close'].shift(1))
     df['log_vol'] = np.log(df['volume'] / df['volume'].shift(1)).replace([np.inf, -np.inf], 0)
     
+    # Add normalized OHLCV features
+    # Normalize prices relative to close price to capture intraday patterns
+    # This makes features more stationary while preserving range information
+    df['norm_open'] = (df['open'] - df['close']) / df['close']
+    df['norm_high'] = (df['high'] - df['close']) / df['close']
+    df['norm_low'] = (df['low'] - df['close']) / df['close']
+    # Note: norm_close would be same as log_ret, so we skip it
+    df['norm_volume'] = np.log(df['volume'] + 1)  # Log transform for volume (add 1 to avoid log(0))
+    
     # Fill NaNs from shifting
     df = df.fillna(0) 
     
-    # Define feature columns to use (Indicators + transformed OHLCV)
-    feature_cols = FeatureRegistry.get_feature_names() + ['log_ret', 'log_vol']
+    # Define feature columns to use (Indicators + transformed OHLCV + normalized OHLCV)
+    feature_cols = FeatureRegistry.get_feature_names() + ['log_ret', 'log_vol'] + ['norm_open', 'norm_high', 'norm_low', 'norm_volume']
     
     # 3. Labeling
     logger.info("Computing labels...")
