@@ -9,3 +9,4 @@ venv/
 .venv/
 mlruns/
 mlflow.db
+backend/paper_trader.log
