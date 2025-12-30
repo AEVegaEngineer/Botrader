@@ -11,6 +11,8 @@ export function useBotData() {
   const [priceData, setPriceData] = useState<any[]>([]);
   const [smaData, setSmaData] = useState<any[]>([]);
   const [showSMA, setShowSMA] = useState(false);
+  const [emaData, setEmaData] = useState<any[]>([]);
+  const [showEMA, setShowEMA] = useState(false);
   const [performance, setPerformance] = useState({
     wins: 0,
     losses: 0,
@@ -95,10 +97,25 @@ export function useBotData() {
       } else {
         setSmaData([]);
       }
+
+      // Fetch EMA data if enabled
+      if (showEMA) {
+        try {
+          const ema50Data = await api.getEMA("BTCUSDT", 50, chartInterval, limit);
+          if (ema50Data && ema50Data.data) {
+            setEmaData(ema50Data.data);
+          }
+        } catch (error) {
+          console.error("Failed to fetch EMA data", error);
+          setEmaData([]);
+        }
+      } else {
+        setEmaData([]);
+      }
     } catch (error) {
       console.error("Failed to fetch bot data", error);
     }
-  }, [chartInterval, showSMA]);
+  }, [chartInterval, showSMA, showEMA]);
 
   useEffect(() => {
     fetchData();
@@ -132,6 +149,9 @@ export function useBotData() {
     smaData,
     showSMA,
     setShowSMA,
+    emaData,
+    showEMA,
+    setShowEMA,
     performance,
     interval: chartInterval,
     setInterval: setChartInterval,

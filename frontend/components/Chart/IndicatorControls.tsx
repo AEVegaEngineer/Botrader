@@ -34,7 +34,6 @@ export function IndicatorControls({ indicators, onToggle }: IndicatorControlsPro
           size="xs" 
           checked={indicators.ema}
           onChange={(e) => onToggle('ema', e.currentTarget.checked)}
-          disabled
         />
         <Switch 
           label="Bollinger Bands" 

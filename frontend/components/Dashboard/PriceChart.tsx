@@ -14,8 +14,11 @@ interface PriceChartProps {
   interval: string;
   smaData?: any[];
   showSMA?: boolean;
+  emaData?: any[];
+  showEMA?: boolean;
   onIntervalChange: (interval: string) => void;
   onToggleSMA?: (show: boolean) => void;
+  onToggleEMA?: (show: boolean) => void;
 }
 
 const INTERVALS = [
@@ -24,7 +27,7 @@ const INTERVALS = [
   '1d', '3d', '1w', '1M'
 ];
 
-export function PriceChart({ data, interval, smaData = [], showSMA = false, onIntervalChange, onToggleSMA }: PriceChartProps) {
+export function PriceChart({ data, interval, smaData = [], showSMA = false, emaData = [], showEMA = false, onIntervalChange, onToggleSMA, onToggleEMA }: PriceChartProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
@@ -40,15 +43,22 @@ export function PriceChart({ data, interval, smaData = [], showSMA = false, onIn
     setIsMounted(true);
   }, []);
 
-  // Sync local indicators state with showSMA prop
+  // Sync local indicators state with showSMA and showEMA props
   useEffect(() => {
     setIndicators(prev => ({ ...prev, sma: showSMA }));
   }, [showSMA]);
+
+  useEffect(() => {
+    setIndicators(prev => ({ ...prev, ema: showEMA }));
+  }, [showEMA]);
 
   const handleToggle = (indicator: string, value: boolean) => {
     setIndicators(prev => ({ ...prev, [indicator]: value }));
     if (indicator === 'sma' && onToggleSMA) {
       onToggleSMA(value);
+    }
+    if (indicator === 'ema' && onToggleEMA) {
+      onToggleEMA(value);
     }
   };
 
@@ -72,6 +82,18 @@ export function PriceChart({ data, interval, smaData = [], showSMA = false, onIn
       name: 'SMA 20',
       type: 'line',
       data: smaData.map(d => ({
+        x: new Date(d.timestamp).getTime(),
+        y: d.value
+      }))
+    });
+  }
+
+  // Add EMA line series if enabled
+  if (showEMA && emaData.length > 0) {
+    series.push({
+      name: 'EMA 50',
+      type: 'line',
+      data: emaData.map(d => ({
         x: new Date(d.timestamp).getTime(),
         y: d.value
       }))
@@ -133,9 +155,9 @@ export function PriceChart({ data, interval, smaData = [], showSMA = false, onIn
       }
     },
     stroke: {
-      width: [0, 2]
+      width: [0, 2, 2]
     },
-    colors: ['#10b981', '#3b82f6'],
+    colors: ['#10b981', '#3b82f6', '#f59e0b'],
     legend: {
       show: true,
       position: 'top',
