@@ -13,6 +13,8 @@ export function useBotData() {
   const [showSMA, setShowSMA] = useState(false);
   const [emaData, setEmaData] = useState<any[]>([]);
   const [showEMA, setShowEMA] = useState(false);
+  const [bbData, setBbData] = useState<any[]>([]);
+  const [showBB, setShowBB] = useState(false);
   const [performance, setPerformance] = useState({
     wins: 0,
     losses: 0,
@@ -112,10 +114,25 @@ export function useBotData() {
       } else {
         setEmaData([]);
       }
+
+      // Fetch Bollinger Bands data if enabled
+      if (showBB) {
+        try {
+          const bbData = await api.getBollingerBands("BTCUSDT", 20, 2.0, chartInterval, limit);
+          if (bbData && bbData.data) {
+            setBbData(bbData.data);
+          }
+        } catch (error) {
+          console.error("Failed to fetch Bollinger Bands data", error);
+          setBbData([]);
+        }
+      } else {
+        setBbData([]);
+      }
     } catch (error) {
       console.error("Failed to fetch bot data", error);
     }
-  }, [chartInterval, showSMA, showEMA]);
+  }, [chartInterval, showSMA, showEMA, showBB]);
 
   useEffect(() => {
     fetchData();
@@ -152,6 +169,9 @@ export function useBotData() {
     emaData,
     showEMA,
     setShowEMA,
+    bbData,
+    showBB,
+    setShowBB,
     performance,
     interval: chartInterval,
     setInterval: setChartInterval,

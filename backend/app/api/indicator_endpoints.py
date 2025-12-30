@@ -419,23 +419,110 @@ async def get_bollinger_bands(
     symbol: str = Query("BTCUSDT"),
     period: int = Query(20),
     std_dev: float = Query(2.0, description="Standard deviations"),
+    interval: str = Query("1m", description="Candle interval"),
     limit: int = Query(500)
 ):
-    """Get Bollinger Bands"""
+    """Get Bollinger Bands from candle_indicators table"""
     try:
+        from app.core.database import engine
+        from sqlalchemy import text
+        
+        # Map interval strings to PostgreSQL interval format (reuse from candles endpoint)
+        interval_map = {
+            '1m': '1 minute',
+            '3m': '3 minutes',
+            '5m': '5 minutes',
+            '15m': '15 minutes',
+            '30m': '30 minutes',
+            '1h': '1 hour',
+            '2h': '2 hours',
+            '4h': '4 hours',
+            '6h': '6 hours',
+            '8h': '8 hours',
+            '12h': '12 hours',
+            '1d': '1 day',
+            '3d': '3 days',
+            '1w': '1 week',
+            '1M': '1 month'
+        }
+        
+        pg_interval = interval_map.get(interval, '1 minute')
+        
+        # Calculate time window (reuse logic from candles endpoint)
+        hours_back_map = {
+            '1m': 2,      # 2 hours for 1m = ~120 candles
+            '3m': 6,      # 6 hours for 3m = ~120 candles
+            '5m': 10,     # 10 hours for 5m = ~120 candles
+            '15m': 24,    # 24 hours for 15m = ~96 candles
+            '30m': 48,    # 48 hours for 30m = ~96 candles
+            '1h': 72,     # 3 days for 1h = ~72 candles
+            '2h': 168,    # 7 days for 2h = ~84 candles
+            '4h': 336,    # 14 days for 4h = ~84 candles
+            '6h': 504,    # 21 days for 6h = ~84 candles
+            '8h': 672,    # 28 days for 8h = ~84 candles
+            '12h': 720,   # 30 days for 12h = ~60 candles
+            '1d': 720,    # 30 days for 1d = ~30 candles
+            '3d': 2160,   # 90 days for 3d = ~30 candles
+            '1w': 5040,   # 210 days for 1w = ~30 candles
+            '1M': 21600   # 900 days for 1M = ~30 candles
+        }
+        hours_back = hours_back_map.get(interval, 24)
+        
+        # Calculate start time
+        now = datetime.now(timezone.utc)
+        start_time = now - timedelta(hours=hours_back)
+        
+        # Aggregate indicators using time_bucket to match candle intervals
+        query = text(f"""
+            WITH recent_indicators AS (
+                SELECT time, bb_upper, bb_middle, bb_lower
+                FROM candle_indicators
+                WHERE symbol = :symbol
+                  AND time >= :start_time
+                  AND bb_upper IS NOT NULL
+                  AND bb_middle IS NOT NULL
+                  AND bb_lower IS NOT NULL
+                ORDER BY time DESC
+            )
+            SELECT 
+                time_bucket('{pg_interval}'::interval, time) AS time,
+                LAST(bb_upper, time) AS bb_upper,
+                LAST(bb_middle, time) AS bb_middle,
+                LAST(bb_lower, time) AS bb_lower
+            FROM recent_indicators
+            GROUP BY time_bucket('{pg_interval}'::interval, time)
+            ORDER BY time DESC
+            LIMIT :limit
+        """)
+        
+        async with engine.connect() as conn:
+            result = await conn.execute(query, {
+                "symbol": symbol,
+                "start_time": start_time,
+                "limit": limit
+            })
+            rows = result.fetchall()
+        
+        data = [
+            {
+                "timestamp": row.time.isoformat(),
+                "upper": float(row.bb_upper),
+                "middle": float(row.bb_middle),
+                "lower": float(row.bb_lower)
+            }
+            for row in rows if row.bb_upper is not None and row.bb_middle is not None and row.bb_lower is not None
+        ]
+        
+        # Return in chronological order
+        data.reverse()
+        
         return {
             "symbol": symbol,
             "indicator": "Bollinger Bands",
             "period": period,
             "std_dev": std_dev,
-            "data": [
-                # {
-                #     "timestamp": "2024-01-01T00:00:00Z",
-                #     "upper": 51000.0,
-                #     "middle": 50000.0,
-                #     "lower": 49000.0
-                # }
-            ]
+            "interval": interval,
+            "data": data
         }
     except Exception as e:
         logger.error(f"Error calculating Bollinger Bands: {e}")

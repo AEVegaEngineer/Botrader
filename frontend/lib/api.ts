@@ -66,6 +66,16 @@ export const api = {
       return { symbol, indicator: "EMA", period, interval, data: [] };
     }
   },
+  getBollingerBands: async (symbol: string = "BTCUSDT", period: number = 20, stdDev: number = 2.0, interval: string = "1m", limit: number = 500) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/indicators/bollinger-bands?symbol=${symbol}&period=${period}&std_dev=${stdDev}&interval=${interval}&limit=${limit}`);
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      return res.json();
+    } catch (error) {
+      console.error('Failed to fetch Bollinger Bands:', error);
+      return { symbol, indicator: "Bollinger Bands", period, std_dev: stdDev, interval, data: [] };
+    }
+  },
   startBot: async () => {
     const res = await fetch(`${API_BASE_URL}/start`, { method: 'POST' });
     return res.json(); // Assuming backend returns something, or just check status

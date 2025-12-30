@@ -40,7 +40,6 @@ export function IndicatorControls({ indicators, onToggle }: IndicatorControlsPro
           size="xs" 
           checked={indicators.bollinger}
           onChange={(e) => onToggle('bollinger', e.currentTarget.checked)}
-          disabled
         />
         <Switch 
           label="RSI (14)" 

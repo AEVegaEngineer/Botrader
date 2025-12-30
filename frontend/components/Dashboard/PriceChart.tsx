@@ -16,9 +16,12 @@ interface PriceChartProps {
   showSMA?: boolean;
   emaData?: any[];
   showEMA?: boolean;
+  bbData?: any[];
+  showBB?: boolean;
   onIntervalChange: (interval: string) => void;
   onToggleSMA?: (show: boolean) => void;
   onToggleEMA?: (show: boolean) => void;
+  onToggleBB?: (show: boolean) => void;
 }
 
 const INTERVALS = [
@@ -27,7 +30,7 @@ const INTERVALS = [
   '1d', '3d', '1w', '1M'
 ];
 
-export function PriceChart({ data, interval, smaData = [], showSMA = false, emaData = [], showEMA = false, onIntervalChange, onToggleSMA, onToggleEMA }: PriceChartProps) {
+export function PriceChart({ data, interval, smaData = [], showSMA = false, emaData = [], showEMA = false, bbData = [], showBB = false, onIntervalChange, onToggleSMA, onToggleEMA, onToggleBB }: PriceChartProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
@@ -43,7 +46,7 @@ export function PriceChart({ data, interval, smaData = [], showSMA = false, emaD
     setIsMounted(true);
   }, []);
 
-  // Sync local indicators state with showSMA and showEMA props
+  // Sync local indicators state with showSMA, showEMA, and showBB props
   useEffect(() => {
     setIndicators(prev => ({ ...prev, sma: showSMA }));
   }, [showSMA]);
@@ -52,6 +55,10 @@ export function PriceChart({ data, interval, smaData = [], showSMA = false, emaD
     setIndicators(prev => ({ ...prev, ema: showEMA }));
   }, [showEMA]);
 
+  useEffect(() => {
+    setIndicators(prev => ({ ...prev, bollinger: showBB }));
+  }, [showBB]);
+
   const handleToggle = (indicator: string, value: boolean) => {
     setIndicators(prev => ({ ...prev, [indicator]: value }));
     if (indicator === 'sma' && onToggleSMA) {
@@ -59,6 +66,9 @@ export function PriceChart({ data, interval, smaData = [], showSMA = false, emaD
     }
     if (indicator === 'ema' && onToggleEMA) {
       onToggleEMA(value);
+    }
+    if (indicator === 'bollinger' && onToggleBB) {
+      onToggleBB(value);
     }
   };
 
@@ -96,6 +106,34 @@ export function PriceChart({ data, interval, smaData = [], showSMA = false, emaD
       data: emaData.map(d => ({
         x: new Date(d.timestamp).getTime(),
         y: d.value
+      }))
+    });
+  }
+
+  // Add Bollinger Bands line series if enabled
+  if (showBB && bbData.length > 0) {
+    series.push({
+      name: 'BB Upper',
+      type: 'line',
+      data: bbData.map(d => ({
+        x: new Date(d.timestamp).getTime(),
+        y: d.upper
+      }))
+    });
+    series.push({
+      name: 'BB Middle',
+      type: 'line',
+      data: bbData.map(d => ({
+        x: new Date(d.timestamp).getTime(),
+        y: d.middle
+      }))
+    });
+    series.push({
+      name: 'BB Lower',
+      type: 'line',
+      data: bbData.map(d => ({
+        x: new Date(d.timestamp).getTime(),
+        y: d.lower
       }))
     });
   }
@@ -155,9 +193,9 @@ export function PriceChart({ data, interval, smaData = [], showSMA = false, emaD
       }
     },
     stroke: {
-      width: [0, 2, 2]
+      width: [0, 2, 2, 1, 1, 1]
     },
-    colors: ['#10b981', '#3b82f6', '#f59e0b'],
+    colors: ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#8b5cf6', '#8b5cf6'],
     legend: {
       show: true,
       position: 'top',
