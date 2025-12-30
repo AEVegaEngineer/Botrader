@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:8001';
+const API_BASE_URL = "http://localhost:8001";
 
 export const api = {
   getStatus: async () => {
@@ -7,8 +7,8 @@ export const api = {
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       return res.json();
     } catch (error) {
-      console.error('Failed to fetch status:', error);
-      return { status: 'Error', is_running: false };
+      console.error("Failed to fetch status:", error);
+      return { status: "Error", is_running: false };
     }
   },
   getHistory: async () => {
@@ -18,7 +18,7 @@ export const api = {
       const data = await res.json();
       return { trades: data.trades || [] };
     } catch (error) {
-      console.error('Failed to fetch history:', error);
+      console.error("Failed to fetch history:", error);
       return { trades: [] };
     }
   },
@@ -28,11 +28,20 @@ export const api = {
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       return res.json();
     } catch (error) {
-      console.error('Failed to fetch price:', error);
-      return { symbol: 'BTCUSDT', price: 0, timestamp: new Date().toISOString() };
+      console.error("Failed to fetch price:", error);
+      return {
+        symbol: "BTCUSDT",
+        price: 0,
+        timestamp: new Date().toISOString(),
+      };
     }
   },
-  getCandles: async (symbol: string = "BTCUSDT", interval: string = "1m", limit: number = 200, hoursBack?: number) => {
+  getCandles: async (
+    symbol: string = "BTCUSDT",
+    interval: string = "1m",
+    limit: number = 200,
+    hoursBack?: number
+  ) => {
     try {
       let url = `${API_BASE_URL}/api/v1/indicators/candles?symbol=${symbol}&interval=${interval}&limit=${limit}`;
       if (hoursBack !== undefined) {
@@ -42,56 +51,127 @@ export const api = {
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       return res.json();
     } catch (error) {
-      console.error('Failed to fetch candles:', error);
+      console.error("Failed to fetch candles:", error);
       return { symbol, interval, candles: [] };
     }
   },
-  getSMA: async (symbol: string = "BTCUSDT", period: number = 20, interval: string = "1m", limit: number = 500) => {
+  getSMA: async (
+    symbol: string = "BTCUSDT",
+    period: number = 20,
+    interval: string = "1m",
+    limit: number = 500
+  ) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/indicators/sma?symbol=${symbol}&period=${period}&interval=${interval}&limit=${limit}`);
+      const res = await fetch(
+        `${API_BASE_URL}/api/v1/indicators/sma?symbol=${symbol}&period=${period}&interval=${interval}&limit=${limit}`
+      );
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       return res.json();
     } catch (error) {
-      console.error('Failed to fetch SMA:', error);
+      console.error("Failed to fetch SMA:", error);
       return { symbol, indicator: "SMA", period, interval, data: [] };
     }
   },
-  getEMA: async (symbol: string = "BTCUSDT", period: number = 50, interval: string = "1m", limit: number = 500) => {
+  getEMA: async (
+    symbol: string = "BTCUSDT",
+    period: number = 50,
+    interval: string = "1m",
+    limit: number = 500
+  ) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/indicators/ema?symbol=${symbol}&period=${period}&interval=${interval}&limit=${limit}`);
+      const res = await fetch(
+        `${API_BASE_URL}/api/v1/indicators/ema?symbol=${symbol}&period=${period}&interval=${interval}&limit=${limit}`
+      );
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       return res.json();
     } catch (error) {
-      console.error('Failed to fetch EMA:', error);
+      console.error("Failed to fetch EMA:", error);
       return { symbol, indicator: "EMA", period, interval, data: [] };
     }
   },
-  getBollingerBands: async (symbol: string = "BTCUSDT", period: number = 20, stdDev: number = 2.0, interval: string = "1m", limit: number = 500) => {
+  getBollingerBands: async (
+    symbol: string = "BTCUSDT",
+    period: number = 20,
+    stdDev: number = 2.0,
+    interval: string = "1m",
+    limit: number = 500
+  ) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/indicators/bollinger-bands?symbol=${symbol}&period=${period}&std_dev=${stdDev}&interval=${interval}&limit=${limit}`);
+      const res = await fetch(
+        `${API_BASE_URL}/api/v1/indicators/bollinger-bands?symbol=${symbol}&period=${period}&std_dev=${stdDev}&interval=${interval}&limit=${limit}`
+      );
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       return res.json();
     } catch (error) {
-      console.error('Failed to fetch Bollinger Bands:', error);
-      return { symbol, indicator: "Bollinger Bands", period, std_dev: stdDev, interval, data: [] };
+      console.error("Failed to fetch Bollinger Bands:", error);
+      return {
+        symbol,
+        indicator: "Bollinger Bands",
+        period,
+        std_dev: stdDev,
+        interval,
+        data: [],
+      };
     }
   },
-  getRSI: async (symbol: string = "BTCUSDT", period: number = 14, interval: string = "1m", limit: number = 500) => {
+  getRSI: async (
+    symbol: string = "BTCUSDT",
+    period: number = 14,
+    interval: string = "1m",
+    limit: number = 500
+  ) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/indicators/rsi?symbol=${symbol}&period=${period}&interval=${interval}&limit=${limit}`);
+      const res = await fetch(
+        `${API_BASE_URL}/api/v1/indicators/rsi?symbol=${symbol}&period=${period}&interval=${interval}&limit=${limit}`
+      );
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       return res.json();
     } catch (error) {
-      console.error('Failed to fetch RSI:', error);
-      return { symbol, indicator: "RSI", period, interval, overbought: 70, oversold: 30, data: [] };
+      console.error("Failed to fetch RSI:", error);
+      return {
+        symbol,
+        indicator: "RSI",
+        period,
+        interval,
+        overbought: 70,
+        oversold: 30,
+        data: [],
+      };
+    }
+  },
+  getMACD: async (
+    symbol: string = "BTCUSDT",
+    fastPeriod: number = 12,
+    slowPeriod: number = 26,
+    signalPeriod: number = 9,
+    interval: string = "1m",
+    limit: number = 500
+  ) => {
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/api/v1/indicators/macd?symbol=${symbol}&fast_period=${fastPeriod}&slow_period=${slowPeriod}&signal_period=${signalPeriod}&interval=${interval}&limit=${limit}`
+      );
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      return res.json();
+    } catch (error) {
+      console.error("Failed to fetch MACD:", error);
+      return {
+        symbol,
+        indicator: "MACD",
+        fast_period: fastPeriod,
+        slow_period: slowPeriod,
+        signal_period: signalPeriod,
+        interval,
+        data: [],
+      };
     }
   },
   startBot: async () => {
-    const res = await fetch(`${API_BASE_URL}/start`, { method: 'POST' });
+    const res = await fetch(`${API_BASE_URL}/start`, { method: "POST" });
     return res.json(); // Assuming backend returns something, or just check status
   },
   stopBot: async () => {
-    const res = await fetch(`${API_BASE_URL}/stop`, { method: 'POST' });
+    const res = await fetch(`${API_BASE_URL}/stop`, { method: "POST" });
     return res.json();
   },
   getPerformance: async () => {
@@ -100,56 +180,65 @@ export const api = {
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       return res.json();
     } catch (error) {
-      console.error('Failed to fetch performance:', error);
-      return { wins: 0, losses: 0, total_pnl: 0, win_rate: 0, equity_curve: [] };
+      console.error("Failed to fetch performance:", error);
+      return {
+        wins: 0,
+        losses: 0,
+        total_pnl: 0,
+        win_rate: 0,
+        equity_curve: [],
+      };
     }
   },
-  
+
   // Risk Management Endpoints
   emergencyStop: async (closePositions: boolean = true, reason?: string) => {
     const res = await fetch(`${API_BASE_URL}/api/v1/emergency-stop`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ close_positions: closePositions, reason })
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ close_positions: closePositions, reason }),
     });
     return res.json();
   },
-  
+
   resumeTrading: async () => {
     const res = await fetch(`${API_BASE_URL}/api/v1/resume-trading`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirmed: true })
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirmed: true }),
     });
     return res.json();
   },
-  
+
   getRiskStatus: async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/risk-status`);
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       return res.json();
     } catch (error) {
-      console.error('Failed to fetch risk status:', error);
+      console.error("Failed to fetch risk status:", error);
       return null;
     }
   },
-  
+
   getPortfolio: async () => {
     const res = await fetch(`${API_BASE_URL}/api/v1/portfolio`);
     return res.json();
   },
-  
+
   closePosition: async (symbol: string) => {
-    const res = await fetch(`${API_BASE_URL}/api/v1/positions/close/${symbol}`, {
-      method: 'POST'
-    });
+    const res = await fetch(
+      `${API_BASE_URL}/api/v1/positions/close/${symbol}`,
+      {
+        method: "POST",
+      }
+    );
     return res.json();
   },
-  
+
   closeAllPositions: async () => {
     const res = await fetch(`${API_BASE_URL}/api/v1/positions/close-all`, {
-      method: 'POST'
+      method: "POST",
     });
     return res.json();
   },
@@ -161,7 +250,7 @@ export const api = {
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       return res.json();
     } catch (error) {
-      console.error('Failed to fetch performance metrics:', error);
+      console.error("Failed to fetch performance metrics:", error);
       return {
         total_return: 0.0,
         annualized_return: 0.0,
@@ -177,7 +266,7 @@ export const api = {
         profit_factor: 0.0,
         turnover: 0.0,
         total_fees: 0.0,
-        fees_pct_of_pnl: 0.0
+        fees_pct_of_pnl: 0.0,
       };
     }
   },
@@ -193,41 +282,57 @@ export const api = {
     return res.json();
   },
 
-  activateStrategy: async (id: string, reason: string = "Manual activation") => {
-    const res = await fetch(`${API_BASE_URL}/api/v1/strategies/${id}/activate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason })
-    });
+  activateStrategy: async (
+    id: string,
+    reason: string = "Manual activation"
+  ) => {
+    const res = await fetch(
+      `${API_BASE_URL}/api/v1/strategies/${id}/activate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      }
+    );
     return res.json();
   },
 
   deactivateStrategy: async (id: string) => {
-    const res = await fetch(`${API_BASE_URL}/api/v1/strategies/${id}/deactivate`, {
-      method: 'POST'
-    });
+    const res = await fetch(
+      `${API_BASE_URL}/api/v1/strategies/${id}/deactivate`,
+      {
+        method: "POST",
+      }
+    );
     return res.json();
   },
 
   // Audit Log
   getInterventions: async (limit: number = 50) => {
-    const res = await fetch(`${API_BASE_URL}/api/v1/interventions?limit=${limit}`);
+    const res = await fetch(
+      `${API_BASE_URL}/api/v1/interventions?limit=${limit}`
+    );
     return res.json();
   },
 
   // Explainability
   getFeatureImportance: async () => {
-    const res = await fetch(`${API_BASE_URL}/api/v1/explainability/feature-importance`);
+    const res = await fetch(
+      `${API_BASE_URL}/api/v1/explainability/feature-importance`
+    );
     return res.json();
   },
 
   getPredictionExplanation: async () => {
     // Mock request for latest prediction
-    const res = await fetch(`${API_BASE_URL}/api/v1/explainability/explain-prediction`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ features: {}, index: 0 })
-    });
+    const res = await fetch(
+      `${API_BASE_URL}/api/v1/explainability/explain-prediction`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ features: {}, index: 0 }),
+      }
+    );
     return res.json();
   },
 
@@ -239,10 +344,10 @@ export const api = {
 
   setStrategy: async (strategy: string) => {
     const res = await fetch(`${API_BASE_URL}/strategy`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ strategy })
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ strategy }),
     });
     return res.json();
-  }
+  },
 };

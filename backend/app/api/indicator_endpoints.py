@@ -475,24 +475,111 @@ async def get_macd(
     fast_period: int = Query(12),
     slow_period: int = Query(26),
     signal_period: int = Query(9),
+    interval: str = Query("1m", description="Candle interval"),
     limit: int = Query(500)
 ):
-    """Get MACD (Moving Average Convergence Divergence)"""
+    """Get MACD (Moving Average Convergence Divergence) from candle_indicators table"""
     try:
+        from app.core.database import engine
+        from sqlalchemy import text
+        
+        # Map interval strings to PostgreSQL interval format (reuse from candles endpoint)
+        interval_map = {
+            '1m': '1 minute',
+            '3m': '3 minutes',
+            '5m': '5 minutes',
+            '15m': '15 minutes',
+            '30m': '30 minutes',
+            '1h': '1 hour',
+            '2h': '2 hours',
+            '4h': '4 hours',
+            '6h': '6 hours',
+            '8h': '8 hours',
+            '12h': '12 hours',
+            '1d': '1 day',
+            '3d': '3 days',
+            '1w': '1 week',
+            '1M': '1 month'
+        }
+        
+        pg_interval = interval_map.get(interval, '1 minute')
+        
+        # Calculate time window (reuse logic from candles endpoint)
+        hours_back_map = {
+            '1m': 2,      # 2 hours for 1m = ~120 candles
+            '3m': 6,      # 6 hours for 3m = ~120 candles
+            '5m': 10,     # 10 hours for 5m = ~120 candles
+            '15m': 24,    # 24 hours for 15m = ~96 candles
+            '30m': 48,    # 48 hours for 30m = ~96 candles
+            '1h': 72,     # 3 days for 1h = ~72 candles
+            '2h': 168,    # 7 days for 2h = ~84 candles
+            '4h': 336,    # 14 days for 4h = ~84 candles
+            '6h': 504,    # 21 days for 6h = ~84 candles
+            '8h': 672,    # 28 days for 8h = ~84 candles
+            '12h': 720,   # 30 days for 12h = ~60 candles
+            '1d': 720,    # 30 days for 1d = ~30 candles
+            '3d': 2160,   # 90 days for 3d = ~30 candles
+            '1w': 5040,   # 210 days for 1w = ~30 candles
+            '1M': 21600   # 900 days for 1M = ~30 candles
+        }
+        hours_back = hours_back_map.get(interval, 24)
+        
+        # Calculate start time
+        now = datetime.now(timezone.utc)
+        start_time = now - timedelta(hours=hours_back)
+        
+        # Aggregate indicators using time_bucket to match candle intervals
+        query = text(f"""
+            WITH recent_indicators AS (
+                SELECT time, macd, macd_signal, macd_diff
+                FROM candle_indicators
+                WHERE symbol = :symbol
+                  AND time >= :start_time
+                  AND macd IS NOT NULL
+                  AND macd_signal IS NOT NULL
+                  AND macd_diff IS NOT NULL
+                ORDER BY time DESC
+            )
+            SELECT 
+                time_bucket('{pg_interval}'::interval, time) AS time,
+                LAST(macd, time) AS macd,
+                LAST(macd_signal, time) AS macd_signal,
+                LAST(macd_diff, time) AS macd_diff
+            FROM recent_indicators
+            GROUP BY time_bucket('{pg_interval}'::interval, time)
+            ORDER BY time DESC
+            LIMIT :limit
+        """)
+        
+        async with engine.connect() as conn:
+            result = await conn.execute(query, {
+                "symbol": symbol,
+                "start_time": start_time,
+                "limit": limit
+            })
+            rows = result.fetchall()
+        
+        data = [
+            {
+                "timestamp": row.time.isoformat(),
+                "macd": float(row.macd),
+                "signal": float(row.macd_signal),
+                "histogram": float(row.macd_diff)
+            }
+            for row in rows if row.macd is not None and row.macd_signal is not None and row.macd_diff is not None
+        ]
+        
+        # Return in chronological order
+        data.reverse()
+        
         return {
             "symbol": symbol,
             "indicator": "MACD",
             "fast_period": fast_period,
             "slow_period": slow_period,
             "signal_period": signal_period,
-            "data": [
-                # {
-                #     "timestamp": "2024-01-01T00:00:00Z",
-                #     "macd": 150.0,
-                #     "signal": 140.0,
-                #     "histogram": 10.0
-                # }
-            ]
+            "interval": interval,
+            "data": data
         }
     except Exception as e:
         logger.error(f"Error calculating MACD: {e}")

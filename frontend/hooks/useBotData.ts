@@ -17,6 +17,8 @@ export function useBotData() {
   const [showBB, setShowBB] = useState(false);
   const [rsiData, setRsiData] = useState<any[]>([]);
   const [showRSI, setShowRSI] = useState(false);
+  const [macdData, setMacdData] = useState<any[]>([]);
+  const [showMACD, setShowMACD] = useState(false);
   const [performance, setPerformance] = useState({
     wins: 0,
     losses: 0,
@@ -90,7 +92,12 @@ export function useBotData() {
       // Fetch SMA data if enabled
       if (showSMA) {
         try {
-          const sma20Data = await api.getSMA("BTCUSDT", 20, chartInterval, limit);
+          const sma20Data = await api.getSMA(
+            "BTCUSDT",
+            20,
+            chartInterval,
+            limit
+          );
           if (sma20Data && sma20Data.data) {
             setSmaData(sma20Data.data);
           }
@@ -105,7 +112,12 @@ export function useBotData() {
       // Fetch EMA data if enabled
       if (showEMA) {
         try {
-          const ema50Data = await api.getEMA("BTCUSDT", 50, chartInterval, limit);
+          const ema50Data = await api.getEMA(
+            "BTCUSDT",
+            50,
+            chartInterval,
+            limit
+          );
           if (ema50Data && ema50Data.data) {
             setEmaData(ema50Data.data);
           }
@@ -120,7 +132,13 @@ export function useBotData() {
       // Fetch Bollinger Bands data if enabled
       if (showBB) {
         try {
-          const bbData = await api.getBollingerBands("BTCUSDT", 20, 2.0, chartInterval, limit);
+          const bbData = await api.getBollingerBands(
+            "BTCUSDT",
+            20,
+            2.0,
+            chartInterval,
+            limit
+          );
           if (bbData && bbData.data) {
             setBbData(bbData.data);
           }
@@ -146,10 +164,32 @@ export function useBotData() {
       } else {
         setRsiData([]);
       }
+
+      // Fetch MACD data if enabled
+      if (showMACD) {
+        try {
+          const macdData = await api.getMACD(
+            "BTCUSDT",
+            12,
+            26,
+            9,
+            chartInterval,
+            limit
+          );
+          if (macdData && macdData.data) {
+            setMacdData(macdData.data);
+          }
+        } catch (error) {
+          console.error("Failed to fetch MACD data", error);
+          setMacdData([]);
+        }
+      } else {
+        setMacdData([]);
+      }
     } catch (error) {
       console.error("Failed to fetch bot data", error);
     }
-  }, [chartInterval, showSMA, showEMA, showBB, showRSI]);
+  }, [chartInterval, showSMA, showEMA, showBB, showRSI, showMACD]);
 
   useEffect(() => {
     fetchData();
@@ -192,6 +232,9 @@ export function useBotData() {
     rsiData,
     showRSI,
     setShowRSI,
+    macdData,
+    showMACD,
+    setShowMACD,
     performance,
     interval: chartInterval,
     setInterval: setChartInterval,
