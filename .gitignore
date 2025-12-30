@@ -10,3 +10,5 @@ venv/
 mlruns/
 mlflow.db
 backend/paper_trader.log
+backend/position_state.json
+backend/.DS_Store
