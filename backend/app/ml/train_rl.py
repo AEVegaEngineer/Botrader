@@ -19,7 +19,7 @@ DATASET_PATH = "dataset.parquet"
 MODEL_DIR = "app/ml/models"
 
 # Budget scenarios to train
-BUDGET_SCENARIOS = [1000.0, 10000.0, 50000.0, 100000.0]
+BUDGET_SCENARIOS = [250.0, 1000.0]
 
 def calculate_sharpe_ratio(returns: List[float]) -> float:
     """Calculate Sharpe ratio from list of returns."""
@@ -27,15 +27,49 @@ def calculate_sharpe_ratio(returns: List[float]) -> float:
         return 0.0
     return np.mean(returns) / np.std(returns) * np.sqrt(252 * 24 * 60)  # Annualized for 1-min candles
 
+def calculate_sortino_ratio(returns: List[float]) -> float:
+    """Calculate Sortino ratio (Sharpe but only penalizes downside volatility)."""
+    if len(returns) == 0:
+        return 0.0
+    returns_array = np.array(returns)
+    downside_returns = returns_array[returns_array < 0]
+    if len(downside_returns) == 0 or np.std(downside_returns) == 0:
+        return 0.0
+    downside_std = np.std(downside_returns)
+    return np.mean(returns_array) / downside_std * np.sqrt(252 * 24 * 60)
+
+def calculate_profit_factor(returns: List[float]) -> float:
+    """Calculate profit factor: total wins / total losses (accounts for magnitude)."""
+    if len(returns) == 0:
+        return 0.0
+    returns_array = np.array(returns)
+    wins = returns_array[returns_array > 0]
+    losses = returns_array[returns_array < 0]
+    total_wins = np.sum(wins) if len(wins) > 0 else 0.0
+    total_losses = abs(np.sum(losses)) if len(losses) > 0 else 0.0
+    if total_losses == 0:
+        return float('inf') if total_wins > 0 else 0.0
+    return total_wins / total_losses
+
+def calculate_calmar_ratio(returns: List[float], max_drawdown: float) -> float:
+    """Calculate Calmar ratio: annualized return / max drawdown."""
+    if len(returns) == 0 or max_drawdown == 0:
+        return 0.0
+    annualized_return = np.mean(returns) * np.sqrt(252 * 24 * 60)
+    return annualized_return / abs(max_drawdown)
+
 def calculate_metrics(episode_returns: List[float], episode_lengths: List[int]) -> dict:
-    """Calculate performance metrics."""
+    """Calculate comprehensive performance metrics."""
     if len(episode_returns) == 0:
         return {
             'mean_return': 0.0,
             'std_return': 0.0,
             'sharpe_ratio': 0.0,
+            'sortino_ratio': 0.0,
             'max_drawdown': 0.0,
-            'win_rate': 0.0
+            'win_rate': 0.0,
+            'profit_factor': 0.0,
+            'calmar_ratio': 0.0
         }
     
     returns_array = np.array(episode_returns)
@@ -49,12 +83,24 @@ def calculate_metrics(episode_returns: List[float], episode_lengths: List[int]) 
     # Win rate
     win_rate = np.sum(returns_array > 0) / len(returns_array)
     
+    # Profit factor (accounts for magnitude of wins vs losses)
+    profit_factor = calculate_profit_factor(episode_returns)
+    
+    # Sortino ratio (only penalizes downside volatility)
+    sortino_ratio = calculate_sortino_ratio(episode_returns)
+    
+    # Calmar ratio (return / max drawdown)
+    calmar_ratio = calculate_calmar_ratio(episode_returns, max_drawdown)
+    
     return {
         'mean_return': float(np.mean(returns_array)),
         'std_return': float(np.std(returns_array)),
         'sharpe_ratio': calculate_sharpe_ratio(episode_returns),
+        'sortino_ratio': sortino_ratio,
         'max_drawdown': float(max_drawdown),
-        'win_rate': float(win_rate)
+        'win_rate': float(win_rate),
+        'profit_factor': float(profit_factor) if not np.isinf(profit_factor) else 999.0,
+        'calmar_ratio': calmar_ratio
     }
 
 def train_episode(env: TradingEnv, agent: PPOAgent, max_steps: int = 240) -> dict:
@@ -111,7 +157,15 @@ def train_rl(budget: float, df: pd.DataFrame, feature_cols: List[str],
     
     # Create agent
     state_dim = 4 + len(feature_cols)  # balance, position, avg_price, pnl + features
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    # Device selection with MPS support for Apple Silicon
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+        logger.info("Using MPS (Metal Performance Shaders) for acceleration on Apple Silicon")
+    else:
+        device = torch.device("cpu")
     logger.info(f"Using device: {device}")
     
     agent = PPOAgent(
@@ -174,21 +228,37 @@ def train_rl(budget: float, df: pd.DataFrame, feature_cols: List[str],
             val_metrics = calculate_metrics(val_returns, [240] * len(val_returns))
             train_metrics = calculate_metrics(train_returns[-100:], train_lengths[-100:])
             
+            # Calculate overfitting metric (train_return - val_return)
+            overfitting_gap = train_metrics['mean_return'] - val_metrics['mean_return']
+            
             logger.info(
                 f"Episode {episode+1}/{num_episodes} | "
                 f"Train Return: {train_metrics['mean_return']:.4f} | "
                 f"Val Return: {val_metrics['mean_return']:.4f} | "
-                f"Val Sharpe: {val_metrics['sharpe_ratio']:.4f}"
+                f"Val Sharpe: {val_metrics['sharpe_ratio']:.4f} | "
+                f"Overfitting Gap: {overfitting_gap:.4f}"
             )
             
-            # Log to MLflow
+            # Log comprehensive metrics to MLflow
             mlflow.log_metrics({
+                # Training metrics
                 'train_mean_return': train_metrics['mean_return'],
                 'train_sharpe': train_metrics['sharpe_ratio'],
+                'train_sortino': train_metrics['sortino_ratio'],
+                'train_profit_factor': train_metrics['profit_factor'],
+                
+                # Validation metrics (more reliable)
                 'val_mean_return': val_metrics['mean_return'],
                 'val_sharpe': val_metrics['sharpe_ratio'],
+                'val_sortino': val_metrics['sortino_ratio'],
                 'val_max_drawdown': val_metrics['max_drawdown'],
-                'val_win_rate': val_metrics['win_rate']
+                'val_win_rate': val_metrics['win_rate'],
+                'val_profit_factor': val_metrics['profit_factor'],
+                'val_calmar_ratio': val_metrics['calmar_ratio'],
+                
+                # Overfitting detection
+                'overfitting_gap': overfitting_gap,
+                'train_val_ratio': train_metrics['mean_return'] / val_metrics['mean_return'] if val_metrics['mean_return'] != 0 else 0.0
             }, step=episode)
             
             # Save best model

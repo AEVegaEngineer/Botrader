@@ -17,7 +17,7 @@ Botrader is a locally deployed algorithmic trading platform for Bitcoin and cryp
 - **MLflow Integration**: Experiment tracking and model versioning
 - **RL Training**: Simulates realistic trading with overlapping time windows, budget constraints, and fee handling
 - **Dataset Builder**: Automated feature engineering from raw OHLCV data
-- **Training Script**: `train_rl.py` - Trains PPO agents for multiple budget scenarios ($1K, $10K, $50K, $100K)
+- **Training Script**: `train_rl.py` - Trains PPO agents for multiple budget scenarios ($250, $1K)
 
 ### ✅ Paper Trading
 
@@ -158,11 +158,9 @@ python -m app.ml.train_rl
 
 **What Gets Trained:**
 
-- **4 separate PPO agents** for different budget scenarios:
-  - $1,000 (small account)
-  - $10,000 (medium account)
-  - $50,000 (large account)
-  - $100,000 (institutional)
+- **2 separate PPO agents** for different budget scenarios:
+  - $250 (small account)
+  - $1,000 (medium account)
 - Each agent learns continuous actions in range [-1, 1]:
   - `-1.0` = Sell entire position
   - `0.0` = Hold
@@ -289,8 +287,8 @@ To use RL models instead of RSI:
    from app.ml.inference import ActionPredictor
 
    predictor = ActionPredictor(
-       model_path='app/ml/models/ppo_agent_budget_10000.pth',
-       budget=10000.0
+       model_path='app/ml/models/ppo_agent_budget_1000.pth',
+       budget=1000.0
    )
    ```
 
@@ -392,28 +390,3 @@ Botrader/
 ├── .env                  # Environment configuration
 └── README.md             # This file
 ```
-
----
-
-## 📝 Recent Updates
-
-**December 30, 2024:**
-
-- ✅ **Deep RL Training System**: Implemented PPO agent with continuous action space
-- ✅ **Realistic Trading Simulation**: Environment with budget constraints, fees, and proper position management
-- ✅ **Overlapping Windows**: Training on diverse 4-hour trading windows with 25% overlap
-- ✅ **Multiple Budget Scenarios**: Trains separate models for $1K, $10K, $50K, $100K accounts
-- ✅ **Docker Support**: Added `train-rl` service to docker-compose for easy training
-- ✅ **Inference System**: Updated to use PPO agents with continuous actions
-- ✅ **Cleanup**: Removed old supervised learning training scripts
-
-**December 4, 2024:**
-
-- ✅ Removed all mock/placeholder data from dashboard
-- ✅ Fixed Start/Stop bot button functionality
-- ✅ Added bot control API endpoints (`/start`, `/stop`, `/status`)
-- ✅ Verified paper trader executes RSI-based trades
-- ✅ Fixed paper trader RSI calculation (uses `ta` library)
-- ✅ Backend now returns real data or zeros (no fake metrics)
-
-**System Status:** Paper trading operational, RL models trained but not yet integrated into live trading
