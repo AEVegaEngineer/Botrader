@@ -9,6 +9,8 @@ export function useBotData() {
   const [history, setHistory] = useState([]);
   const [price, setPrice] = useState(0);
   const [priceData, setPriceData] = useState<any[]>([]);
+  const [smaData, setSmaData] = useState<any[]>([]);
+  const [showSMA, setShowSMA] = useState(false);
   const [performance, setPerformance] = useState({
     wins: 0,
     losses: 0,
@@ -78,10 +80,25 @@ export function useBotData() {
       if (candleData && candleData.candles) {
         setPriceData(candleData.candles);
       }
+
+      // Fetch SMA data if enabled
+      if (showSMA) {
+        try {
+          const sma20Data = await api.getSMA("BTCUSDT", 20, chartInterval, limit);
+          if (sma20Data && sma20Data.data) {
+            setSmaData(sma20Data.data);
+          }
+        } catch (error) {
+          console.error("Failed to fetch SMA data", error);
+          setSmaData([]);
+        }
+      } else {
+        setSmaData([]);
+      }
     } catch (error) {
       console.error("Failed to fetch bot data", error);
     }
-  }, [chartInterval]);
+  }, [chartInterval, showSMA]);
 
   useEffect(() => {
     fetchData();
@@ -112,6 +129,9 @@ export function useBotData() {
     history,
     price,
     priceData,
+    smaData,
+    showSMA,
+    setShowSMA,
     performance,
     interval: chartInterval,
     setInterval: setChartInterval,

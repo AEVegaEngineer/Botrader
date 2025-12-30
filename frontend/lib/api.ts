@@ -46,6 +46,16 @@ export const api = {
       return { symbol, interval, candles: [] };
     }
   },
+  getSMA: async (symbol: string = "BTCUSDT", period: number = 20, interval: string = "1m", limit: number = 500) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/indicators/sma?symbol=${symbol}&period=${period}&interval=${interval}&limit=${limit}`);
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      return res.json();
+    } catch (error) {
+      console.error('Failed to fetch SMA:', error);
+      return { symbol, indicator: "SMA", period, interval, data: [] };
+    }
+  },
   startBot: async () => {
     const res = await fetch(`${API_BASE_URL}/start`, { method: 'POST' });
     return res.json(); // Assuming backend returns something, or just check status

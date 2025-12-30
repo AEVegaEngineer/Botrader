@@ -143,18 +143,106 @@ async def get_candles(
 async def get_sma(
     symbol: str = Query("BTCUSDT"),
     period: int = Query(20, description="SMA period"),
+    interval: str = Query("1m", description="Candle interval"),
     limit: int = Query(500)
 ):
-    """Get Simple Moving Average"""
+    """Get Simple Moving Average from candle_indicators table"""
     try:
-        # In production, fetch from indicator tables or calculate on-the-fly
+        from app.core.database import engine
+        from sqlalchemy import text
+        
+        # Map interval strings to PostgreSQL interval format (reuse from candles endpoint)
+        interval_map = {
+            '1m': '1 minute',
+            '3m': '3 minutes',
+            '5m': '5 minutes',
+            '15m': '15 minutes',
+            '30m': '30 minutes',
+            '1h': '1 hour',
+            '2h': '2 hours',
+            '4h': '4 hours',
+            '6h': '6 hours',
+            '8h': '8 hours',
+            '12h': '12 hours',
+            '1d': '1 day',
+            '3d': '3 days',
+            '1w': '1 week',
+            '1M': '1 month'
+        }
+        
+        pg_interval = interval_map.get(interval, '1 minute')
+        
+        # Calculate time window (reuse logic from candles endpoint)
+        hours_back_map = {
+            '1m': 2,      # 2 hours for 1m = ~120 candles
+            '3m': 6,      # 6 hours for 3m = ~120 candles
+            '5m': 10,     # 10 hours for 5m = ~120 candles
+            '15m': 24,    # 24 hours for 15m = ~96 candles
+            '30m': 48,    # 48 hours for 30m = ~96 candles
+            '1h': 72,     # 3 days for 1h = ~72 candles
+            '2h': 168,    # 7 days for 2h = ~84 candles
+            '4h': 336,    # 14 days for 4h = ~84 candles
+            '6h': 504,    # 21 days for 6h = ~84 candles
+            '8h': 672,    # 28 days for 8h = ~84 candles
+            '12h': 720,   # 30 days for 12h = ~60 candles
+            '1d': 720,    # 30 days for 1d = ~30 candles
+            '3d': 2160,   # 90 days for 3d = ~30 candles
+            '1w': 5040,   # 210 days for 1w = ~30 candles
+            '1M': 21600   # 900 days for 1M = ~30 candles
+        }
+        hours_back = hours_back_map.get(interval, 24)
+        
+        # Calculate start time
+        now = datetime.now(timezone.utc)
+        start_time = now - timedelta(hours=hours_back)
+        
+        # Select the appropriate SMA column based on period
+        sma_column = f"sma_{period}" if period in [20, 50] else "sma_20"
+        
+        # Aggregate indicators using time_bucket to match candle intervals
+        query = text(f"""
+            WITH recent_indicators AS (
+                SELECT time, {sma_column} as sma_value
+                FROM candle_indicators
+                WHERE symbol = :symbol
+                  AND time >= :start_time
+                  AND {sma_column} IS NOT NULL
+                ORDER BY time DESC
+            )
+            SELECT 
+                time_bucket('{pg_interval}'::interval, time) AS time,
+                LAST(sma_value, time) AS sma_value
+            FROM recent_indicators
+            GROUP BY time_bucket('{pg_interval}'::interval, time)
+            ORDER BY time DESC
+            LIMIT :limit
+        """)
+        
+        async with engine.connect() as conn:
+            result = await conn.execute(query, {
+                "symbol": symbol,
+                "start_time": start_time,
+                "limit": limit
+            })
+            rows = result.fetchall()
+        
+        data = [
+            {
+                "timestamp": row.time.isoformat(),
+                "value": float(row.sma_value)
+            }
+            for row in rows if row.sma_value is not None
+        ]
+        
+        # Return in chronological order
+        data.reverse()
+        
         return {
             "symbol": symbol,
             "indicator": "SMA",
             "period": period,
-            "data": [
-                # {"timestamp": "2024-01-01T00:00:00Z", "value": 50000.0}
-            ]
+            "interval": interval,
+            "data": data
         }
     except Exception as e:
         logger.error(f"Error calculating SMA: {e}")

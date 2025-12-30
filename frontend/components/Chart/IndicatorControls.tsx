@@ -20,9 +20,6 @@ export function IndicatorControls({ indicators, onToggle }: IndicatorControlsPro
       <Group gap="xs" mb="sm">
         <Settings size={16} />
         <Text size="sm" fw={600}>Chart Indicators</Text>
-        <Tooltip label="Indicators are not yet implemented for candlestick charts">
-          <Info size={14} style={{ opacity: 0.5 }} />
-        </Tooltip>
       </Group>
       
       <Stack gap="xs">
@@ -31,7 +28,6 @@ export function IndicatorControls({ indicators, onToggle }: IndicatorControlsPro
           size="xs" 
           checked={indicators.sma}
           onChange={(e) => onToggle('sma', e.currentTarget.checked)}
-          disabled
         />
         <Switch 
           label="EMA (50)" 

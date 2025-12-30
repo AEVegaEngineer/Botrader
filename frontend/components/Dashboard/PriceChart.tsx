@@ -12,7 +12,10 @@ const ReactApexChart = dynamic(() => import('react-apexcharts'), { ssr: false })
 interface PriceChartProps {
   data: any[];
   interval: string;
+  smaData?: any[];
+  showSMA?: boolean;
   onIntervalChange: (interval: string) => void;
+  onToggleSMA?: (show: boolean) => void;
 }
 
 const INTERVALS = [
@@ -21,7 +24,7 @@ const INTERVALS = [
   '1d', '3d', '1w', '1M'
 ];
 
-export function PriceChart({ data, interval, onIntervalChange }: PriceChartProps) {
+export function PriceChart({ data, interval, smaData = [], showSMA = false, onIntervalChange, onToggleSMA }: PriceChartProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
@@ -37,8 +40,16 @@ export function PriceChart({ data, interval, onIntervalChange }: PriceChartProps
     setIsMounted(true);
   }, []);
 
+  // Sync local indicators state with showSMA prop
+  useEffect(() => {
+    setIndicators(prev => ({ ...prev, sma: showSMA }));
+  }, [showSMA]);
+
   const handleToggle = (indicator: string, value: boolean) => {
     setIndicators(prev => ({ ...prev, [indicator]: value }));
+    if (indicator === 'sma' && onToggleSMA) {
+      onToggleSMA(value);
+    }
   };
 
   const handleIntervalSelect = (newInterval: string) => {
@@ -47,12 +58,25 @@ export function PriceChart({ data, interval, onIntervalChange }: PriceChartProps
   };
 
   // Format data for ApexCharts
-  const series = [{
+  const series: any[] = [{
+    name: 'Price',
     data: data.map(d => ({
       x: new Date(d.time).getTime(),
       y: [d.open, d.high, d.low, d.close]
     }))
   }];
+
+  // Add SMA line series if enabled
+  if (showSMA && smaData.length > 0) {
+    series.push({
+      name: 'SMA 20',
+      type: 'line',
+      data: smaData.map(d => ({
+        x: new Date(d.timestamp).getTime(),
+        y: d.value
+      }))
+    });
+  }
 
   const options: any = {
     chart: {
@@ -106,6 +130,17 @@ export function PriceChart({ data, interval, onIntervalChange }: PriceChartProps
           upward: '#10b981',
           downward: '#ef4444'
         }
+      }
+    },
+    stroke: {
+      width: [0, 2]
+    },
+    colors: ['#10b981', '#3b82f6'],
+    legend: {
+      show: true,
+      position: 'top',
+      labels: {
+        colors: '#94a3b8'
       }
     }
   };
